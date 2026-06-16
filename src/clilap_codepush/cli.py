@@ -66,20 +66,24 @@ def screen_setup() -> None:
     ui.wl(f"  {BG}✓ 保存しました{R}: {CONFIG_PATH}")
 
 def screen_health() -> None:
+    err = None
+    data = None
     with ui.Spinner("health チェック中..."):
         try:
             data = health()
         except ApiError as e:
-            ui.wl(f"  {BR}✗ {e}{R}")
-            return
+            err = e
     ui.clear()
     ui.wl(ui.sep())
     ui.wl(f"  {BC}Health Check{R}")
     ui.wl(ui.div())
-    ui.wl(ui.detail_row("Status", f"{BG}OK{R}"))
-    for k, v in (data.items() if isinstance(data, dict) else []):
-        if k != "status":
-            ui.wl(ui.detail_row(k, str(v)))
+    if err is not None:
+        ui.wl(f"  {BR}✗ {err}{R}")
+    else:
+        ui.wl(ui.detail_row("Status", f"{BG}OK{R}"))
+        for k, v in (data.items() if isinstance(data, dict) else []):
+            if k != "status":
+                ui.wl(ui.detail_row(k, str(v)))
     ui.wl(ui.sep())
     input(f"  {D}Enterで戻る{R}")
 
@@ -108,39 +112,63 @@ def screen_upload(args_file: str | None = None) -> None:
     cfg = _load_cfg()
     token = cfg.get("admin_token") or input(f"  {BC}トークン:{R} ").strip() or None
 
+    err = None
+    result = None
     with ui.Spinner(f"アップロード中: {filename}"):
         try:
             result = upload(path.read_bytes(), filename, ttl=ttl, group=group, token=token)
         except ApiError as e:
-            ui.wl(f"  {BR}✗ {e}{R}")
-            input(f"  {D}Enterで戻る{R}")
-            return
+            err = e
 
-    ui.wl(f"  {BG}✓ アップロード完了{R}")
-    pid = result.get("id", "")
-    ui.wl(ui.detail_row("ID",  pid))
-    ui.wl(ui.detail_row("URL", f"{BASE_URL}/paste/{pid}/raw"))
+    ui.clear()
+    ui.wl(ui.sep())
+    ui.wl(f"  {BC}ファイルアップロード{R}")
+    ui.wl(ui.div())
+    if err is not None:
+        ui.wl(f"  {BR}✗ {err}{R}")
+    else:
+        pid = result.get("id", "")
+        ui.wl(f"  {BG}✓ アップロード完了{R}")
+        ui.wl(ui.detail_row("ID",  pid))
+        ui.wl(ui.detail_row("URL", f"{BASE_URL}/paste/{pid}/raw"))
+    ui.wl(ui.sep())
     input(f"  {D}Enterで戻る{R}")
 
 def screen_get(args_id: str | None = None) -> None:
-    ui.clear()
-    ui.wl(ui.sep())
-    ui.wl(f"  {BC}ペースト取得{R}")
-    ui.wl(ui.div())
+    def _draw():
+        ui.clear()
+        ui.wl(ui.sep())
+        ui.wl(f"  {BC}ペースト取得{R}")
+        ui.wl(ui.div())
+
+    _draw()
     ui.show_cursor()
 
     pid = args_id or input(f"  {BC}Paste ID:{R} ").strip()
     if not pid:
         return
 
+    err = None
+    data = None
     with ui.Spinner("取得中..."):
         try:
             data = get_raw(pid)
         except ApiError as e:
-            ui.wl(f"  {BR}✗ {e}{R}")
-            input(f"  {D}Enterで戻る{R}")
-            return
+            err = e
 
+    if err is not None:
+        _draw()
+        ui.wl(f"  {BR}✗ {err}{R}")
+        ui.wl()
+        ui.wl(f"  ペーストが見つかりません。削除済みか期限切れの可能性があります。")
+        ui.wl()
+        ui.wl(f"  {D}clilap.org/codepush{R}")
+        ui.wl(ui.sep())
+        input(f"  {D}Enterで戻る{R}")
+        return
+
+    _draw()
+    ui.show_cursor()
     out_raw = input(f"  {BC}保存先ファイル (空=stdout):{R} ").strip()
     if out_raw:
         pathlib.Path(out_raw).write_bytes(data)
