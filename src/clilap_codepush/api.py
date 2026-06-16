@@ -56,8 +56,29 @@ def delete_paste(paste_id: str, token: str) -> dict:
     url = f"{BASE_URL}/paste/{paste_id}?token={urllib.parse.quote(token)}"
     return _json("DELETE", url)
 
+def delete_by_key(delete_key: str) -> str:
+    """delete_key でペースト削除 (DELETE /cp with key=...)"""
+    data = urllib.parse.urlencode({"key": delete_key}).encode()
+    status, body = _req("DELETE", f"{BASE_URL}/cp",
+                        data=data,
+                        headers={"Content-Type": "application/x-www-form-urlencoded"})
+    return body.decode(errors="replace")
+
+def update_paste(paste_id: str, delete_key: str, content: bytes, filename: str) -> str:
+    """delete_key でペースト上書き (PUT /cp/{id})"""
+    qs = urllib.parse.urlencode({"key": delete_key, "filename": filename})
+    url = f"{BASE_URL}/cp/{paste_id}?{qs}"
+    status, body = _req("PUT", url, data=content,
+                        headers={"Content-Type": "application/octet-stream"})
+    return body.decode(errors="replace")
+
+def get_diff(id1: str, id2: str) -> str:
+    """2ペーストの diff テキストを返す"""
+    status, body = _req("GET", f"{BASE_URL}/diff/{id1}/{id2}")
+    return body.decode(errors="replace")
+
 def health() -> dict:
-    return _json("GET", f"{BASE_URL}/health")
+    return _json("GET", f"{ADMIN_URL}/cp/health")
 
 # ── Admin API ─────────────────────────────────────────────────────────────────
 

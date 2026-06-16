@@ -37,7 +37,7 @@ def rows() -> int: return shutil.get_terminal_size().lines
 def w(s: str) -> None: sys.stdout.write(s); sys.stdout.flush()
 def wl(s: str = "") -> None: sys.stdout.write(s + "\n"); sys.stdout.flush()
 
-def clear() -> None: w("\x1b[2J\x1b[H")
+def clear() -> None: w("\x1b[2J\x1b[3J\x1b[H")
 def hide_cursor() -> None: w("\x1b[?25l")
 def show_cursor() -> None: w("\x1b[?25h")
 def clear_line() -> None: w("\x1b[2K\r")

@@ -6,11 +6,13 @@ from . import __version__
 from . import ui
 from .api import (
     AdminApi, ApiError, upload, get_raw, delete_paste, health,
+    delete_by_key, update_paste, get_diff,
     BASE_URL, ADMIN_URL,
 )
 
 # ── Config ────────────────────────────────────────────────────────────────────
 CONFIG_PATH = pathlib.Path.home() / ".config" / "clilap-codepush" / "config.json"
+KEYS_PATH   = pathlib.Path.home() / ".config" / "clilap-codepush" / "keys.json"
 
 def _load_cfg() -> dict:
     if CONFIG_PATH.exists():
@@ -23,6 +25,26 @@ def _load_cfg() -> dict:
 def _save_cfg(cfg: dict) -> None:
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONFIG_PATH.write_text(json.dumps(cfg, indent=2))
+
+def _load_keys() -> dict:
+    if KEYS_PATH.exists():
+        try:
+            return json.loads(KEYS_PATH.read_text())
+        except Exception:
+            pass
+    return {}
+
+def _save_key(paste_id: str, delete_key: str, filename: str) -> None:
+    keys = _load_keys()
+    keys[paste_id] = {"delete_key": delete_key, "filename": filename,
+                      "uploaded_at": datetime.datetime.now().isoformat()}
+    KEYS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    KEYS_PATH.write_text(json.dumps(keys, indent=2))
+
+def _remove_key(paste_id: str) -> None:
+    keys = _load_keys()
+    keys.pop(paste_id, None)
+    KEYS_PATH.write_text(json.dumps(keys, indent=2))
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 R   = ui.R; D = ui.D; BC = ui.BC; BG = ui.BG; BY = ui.BY; BW = ui.BW
@@ -128,9 +150,14 @@ def screen_upload(args_file: str | None = None) -> None:
         ui.wl(f"  {BR}✗ {err}{R}")
     else:
         pid = result.get("id", "")
+        dk  = result.get("delete_key", "")
+        if pid and dk:
+            _save_key(pid, dk, filename)
         ui.wl(f"  {BG}✓ アップロード完了{R}")
-        ui.wl(ui.detail_row("ID",  pid))
-        ui.wl(ui.detail_row("URL", f"{BASE_URL}/paste/{pid}/raw"))
+        ui.wl(ui.detail_row("ID",       pid))
+        ui.wl(ui.detail_row("URL",      f"{BASE_URL}/paste/{pid}/raw"))
+        if dk:
+            ui.wl(ui.detail_row("管理キー", f"{BR}{dk}{R}  {D}(~/.config/clilap-codepush/keys.json に保存済み){R}"))
     ui.wl(ui.sep())
     input(f"  {D}Enterで戻る{R}")
 
@@ -178,6 +205,155 @@ def screen_get(args_id: str | None = None) -> None:
         ui.clear()
         sys.stdout.buffer.write(data)
         sys.stdout.buffer.flush()
+
+# ── My files screens ──────────────────────────────────────────────────────────
+
+def screen_my_files() -> None:
+    while True:
+        keys = _load_keys()
+        items = [{"id": k, **v} for k, v in keys.items()]
+        items.sort(key=lambda x: x.get("uploaded_at", ""), reverse=True)
+
+        cols = [
+            {"header": "ID",       "width": 10, "render": lambda x, s: f"{DC}{x['id'][:8]}{R}"},
+            {"header": "ファイル名", "width": 26, "render": lambda x, s: x.get("filename", "")[:26]},
+            {"header": "アップロード日時", "width": 20, "render": lambda x, s: x.get("uploaded_at", "")[:16]},
+        ]
+        extra = [
+            {"key": "d", "label": "削除", "action": "delete"},
+            {"key": "u", "label": "上書き", "action": "update"},
+        ]
+        r = ui.table(
+            "自分のファイル",
+            items, cols,
+            extra_keys=extra,
+            hint="Enter 詳細  d 削除  u 上書き  q 戻る",
+        )
+        if r.action in ("quit", "back"): return
+        if r.action == "refresh": pass
+        if r.action == "select" and r.item:
+            screen_my_file_detail(r.item)
+        if r.action == "delete" and r.item:
+            screen_delete_file(r.item)
+        if r.action == "update" and r.item:
+            screen_update_file(r.item)
+
+def screen_my_file_detail(item: dict) -> None:
+    pid = item["id"]
+    dk  = item["delete_key"]
+    while True:
+        ui.clear()
+        ui.wl(ui.sep())
+        ui.wl(f"  {BC}ファイル詳細{R}")
+        ui.wl(ui.div())
+        ui.wl(ui.detail_row("ID",         pid))
+        ui.wl(ui.detail_row("ファイル名",  item.get("filename", "")))
+        ui.wl(ui.detail_row("アップロード", item.get("uploaded_at", "")[:16]))
+        ui.wl(ui.detail_row("管理キー",   f"{BR}{dk}{R}"))
+        ui.wl(ui.detail_row("RAW URL",    f"{BASE_URL}/paste/{pid}/raw"))
+        ui.wl(ui.sep())
+        ui.wl(f"  {D}d 削除  u 上書き  q 戻る{R}")
+        key = ui.getch()
+        if key in ("q", "esc", "ctrl_c"): return
+        if key == "d":
+            screen_delete_file(item)
+            return
+        if key == "u":
+            screen_update_file(item)
+
+def screen_delete_file(item: dict) -> None:
+    pid = item["id"]
+    dk  = item["delete_key"]
+    ui.clear()
+    ui.wl(ui.sep())
+    ui.wl(f"  {BC}ファイル削除{R}")
+    ui.wl(ui.div())
+    ui.wl(ui.detail_row("ID",        pid))
+    ui.wl(ui.detail_row("ファイル名", item.get("filename", "")))
+    ui.wl(ui.sep())
+    if not ui.confirm(f"{BR}削除しますか?{R}"):
+        return
+    err = None
+    with ui.Spinner("削除中..."):
+        try:
+            delete_by_key(dk)
+        except Exception as e:
+            err = e
+    ui.clear()
+    ui.wl(ui.sep())
+    ui.wl(f"  {BC}ファイル削除{R}")
+    ui.wl(ui.div())
+    if err:
+        ui.wl(f"  {BR}✗ {err}{R}")
+    else:
+        _remove_key(pid)
+        ui.wl(f"  {BG}✓ 削除完了{R}")
+    ui.wl(ui.sep())
+    input(f"  {D}Enterで戻る{R}")
+
+def screen_update_file(item: dict) -> None:
+    pid      = item["id"]
+    dk       = item["delete_key"]
+    filename = item.get("filename", "paste.txt")
+    ui.clear()
+    ui.wl(ui.sep())
+    ui.wl(f"  {BC}ファイル上書き{R}  {D}{filename}{R}")
+    ui.wl(ui.div())
+    ui.show_cursor()
+    raw = input(f"  {BC}新しいファイルパス:{R} ").strip()
+    path = pathlib.Path(raw)
+    if not path.exists():
+        ui.wl(f"  {BR}✗ ファイルが見つかりません{R}")
+        input(f"  {D}Enterで戻る{R}")
+        return
+    err = None
+    with ui.Spinner(f"上書き中: {path.name}"):
+        try:
+            update_paste(pid, dk, path.read_bytes(), path.name)
+        except Exception as e:
+            err = e
+    ui.clear()
+    ui.wl(ui.sep())
+    ui.wl(f"  {BC}ファイル上書き{R}")
+    ui.wl(ui.div())
+    if err:
+        ui.wl(f"  {BR}✗ {err}{R}")
+    else:
+        _save_key(pid, dk, path.name)
+        ui.wl(f"  {BG}✓ 上書き完了{R}")
+        ui.wl(ui.detail_row("ID",  pid))
+        ui.wl(ui.detail_row("URL", f"{BASE_URL}/paste/{pid}/raw"))
+    ui.wl(ui.sep())
+    input(f"  {D}Enterで戻る{R}")
+
+def screen_diff() -> None:
+    ui.clear()
+    ui.wl(ui.sep())
+    ui.wl(f"  {BC}Diff (2ファイル比較){R}")
+    ui.wl(ui.div())
+    ui.show_cursor()
+    id1 = input(f"  {BC}Paste ID 1:{R} ").strip()
+    id2 = input(f"  {BC}Paste ID 2:{R} ").strip()
+    if not id1 or not id2:
+        return
+    err = None
+    result = None
+    with ui.Spinner("diff 取得中..."):
+        try:
+            result = get_diff(id1, id2)
+        except Exception as e:
+            err = e
+    ui.clear()
+    ui.wl(ui.sep())
+    ui.wl(f"  {BC}Diff{R}  {D}{id1[:8]}... ↔ {id2[:8]}...{R}")
+    ui.wl(ui.div())
+    if err:
+        ui.wl(f"  {BR}✗ {err}{R}")
+    else:
+        for line in result.splitlines()[:ui.rows()-8]:
+            ui.wl("  " + line[:ui.cols()-4])
+    ui.wl(ui.sep())
+    input(f"  {D}Enterで戻る{R}")
 
 # ── Admin screens ─────────────────────────────────────────────────────────────
 
@@ -473,14 +649,18 @@ def screen_purge(cfg: dict) -> None:
 # ── Main menu ─────────────────────────────────────────────────────────────────
 
 MAIN_ITEMS = [
-    {"label": "アップロード",        "value": "upload", "hint": "ファイルをアップロード"},
-    {"label": "ダウンロード / 表示", "value": "get",    "hint": "ペーストを取得"},
-    {"label": "Health チェック",     "value": "health", "hint": "サーバー状態確認"},
+    {"label": "アップロード",        "value": "upload",    "hint": "ファイルをアップロード"},
+    {"label": "ダウンロード / 表示", "value": "get",       "hint": "ペーストを取得"},
+    {"label": "自分のファイル",      "value": "myfiles",   "hint": "アップロード済みの管理・削除・上書き"},
+    {"label": "Diff",                "value": "diff",      "hint": "2ペーストの差分を表示"},
+    {"label": "Health チェック",     "value": "health",    "hint": "サーバー状態確認"},
 ]
 
 def _run_action(action: str, cfg: dict) -> None:
-    if action == "upload":  screen_upload()
-    elif action == "get":   screen_get()
+    if action == "upload":   screen_upload()
+    elif action == "get":    screen_get()
+    elif action == "myfiles": screen_my_files()
+    elif action == "diff":   screen_diff()
     elif action == "health": screen_health()
     elif action == "stats":  screen_stats(cfg)
     elif action == "pastes": screen_pastes(cfg)
@@ -516,6 +696,8 @@ Commands:
   (none)          インタラクティブメニュー起動
   upload <file>   ファイルをアップロード
   get <id>        ペーストを stdout に出力
+  myfiles         アップロード済みファイルの管理
+  diff            2ペーストの差分表示
   health          サーバー状態確認
   help, --help    このヘルプを表示
 
@@ -541,6 +723,12 @@ def main() -> None:
         screen_upload(args[1] if len(args) > 1 else None)
     elif cmd == "get":
         screen_get(args[1] if len(args) > 1 else None)
+    elif cmd in ("myfiles", "my"):
+        screen_my_files()
+    elif cmd == "diff":
+        screen_diff()
+    elif cmd == "delete":
+        screen_my_files()
     else:
         ui.wl(f"  {BR}不明なコマンド: {cmd}{R}")
         _print_help()
