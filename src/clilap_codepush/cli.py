@@ -126,18 +126,20 @@ def screen_upload(args_file: str | None = None) -> None:
     ui.wl(ui.div())
 
     if args_file:
-        path = pathlib.Path(args_file)
+        raw_path = args_file
     else:
-        raw = ui.prompt("ファイルパス:")
-        if raw is None: return
-        path = pathlib.Path(raw)
+        raw_path = ui.prompt("ファイルパス:")
+        if raw_path is None: return
 
-    if not path.exists():
-        ui.wl(f"  {BR}✗ ファイルが見つかりません: {path}{R}")
+    # pathlib は \\wsl.localhost\ UNCパスを誤認することがあるため os.path で確認
+    import os as _os
+    if not _os.path.exists(raw_path):
+        ui.wl(f"  {BR}✗ ファイルが見つかりません: {raw_path}{R}")
         ui.wait_key()
         return
 
-    filename = path.name
+    path = pathlib.Path(raw_path)
+    filename = _os.path.basename(raw_path) or path.name
     ttl_choice = ui.menu("有効期限", [
         {"label": "無期限",         "value": "0"},
         {"label": "1時間",          "value": str(3600)},
@@ -172,7 +174,9 @@ def screen_upload(args_file: str | None = None) -> None:
     result = None
     with ui.Spinner(f"アップロード中: {filename}"):
         try:
-            result = upload(path.read_bytes(), filename, ttl=ttl, group=group, token=token)
+            with open(raw_path, "rb") as _f:
+                _content = _f.read()
+            result = upload(_content, filename, ttl=ttl, group=group, token=token)
         except ApiError as e:
             err = e
 
@@ -414,15 +418,18 @@ def screen_update_file(item: dict) -> None:
     ui.wl(ui.div())
     raw = ui.prompt("新しいファイルパス:")
     if raw is None: return
-    path = pathlib.Path(raw)
-    if not path.exists():
+    import os as _os
+    if not _os.path.exists(raw):
         ui.wl(f"  {BR}✗ ファイルが見つかりません{R}")
         ui.wait_key()
         return
+    new_filename = _os.path.basename(raw) or pathlib.Path(raw).name
     err = None
-    with ui.Spinner(f"上書き中: {path.name}"):
+    with ui.Spinner(f"上書き中: {new_filename}"):
         try:
-            update_paste(pid, dk, path.read_bytes(), path.name)
+            with open(raw, "rb") as _f:
+                _content = _f.read()
+            update_paste(pid, dk, _content, new_filename)
         except Exception as e:
             err = e
     ui.clear()
