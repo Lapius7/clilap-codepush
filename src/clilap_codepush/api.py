@@ -37,17 +37,11 @@ def _json(method: str, url: str, **kw) -> Any:
 
 def upload(content: bytes, filename: str, *, ttl: int | None = None,
            group: str | None = None, token: str | None = None) -> dict:
-    # POST /{ttl}/{filename} or POST /{filename}
-    # サーバーはパスからファイル名・TTLを取得する
-    safe = urllib.parse.quote(filename, safe=".-_")
-    if ttl is not None:
-        path = f"/{ttl}s/{safe}"
-    else:
-        path = f"/{safe}"
+    # POST / でアップロード、ファイル名はX-Filenameヘッダー、TTLはX-Expireヘッダー
     qs: dict[str, str] = {}
     if group: qs["group"] = group
     if token: qs["token"] = token
-    url = f"{BASE_URL}{path}"
+    url = f"{BASE_URL}/"
     if qs:
         url += "?" + urllib.parse.urlencode(qs)
     hdrs = {
@@ -55,6 +49,8 @@ def upload(content: bytes, filename: str, *, ttl: int | None = None,
         "X-Filename": filename,
         "Accept": "application/json",
     }
+    if ttl is not None:
+        hdrs["X-Expire"] = f"{ttl}s"
     return _json("POST", url, data=content, headers=hdrs)
 
 def get_raw(paste_id: str) -> bytes:
