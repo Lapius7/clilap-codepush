@@ -155,7 +155,8 @@ class Spinner:
         show_cursor()
 
 # ── Menu ──────────────────────────────────────────────────────────────────────
-def menu(title: str, items: list[dict], back: bool = False) -> str | None:
+def menu(title: str, items: list[dict], back: bool = False,
+         subtitle: str = "") -> str | None:
     """Arrow-key driven menu. Returns selected value or None (back/quit)."""
     opts = list(items)
     if back:
@@ -167,6 +168,8 @@ def menu(title: str, items: list[dict], back: bool = False) -> str | None:
         clear()
         wl(sep())
         wl(f"  {BC}{title}{R}")
+        if subtitle:
+            wl(f"  {subtitle}")
         wl(div())
         for i, item in enumerate(opts):
             sel = i == idx

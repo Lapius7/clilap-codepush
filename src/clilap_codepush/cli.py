@@ -715,11 +715,12 @@ def interactive_menu(update_thread: threading.Thread | None = None) -> None:
     cfg = _load_cfg()
     if update_thread:
         update_thread.join(timeout=2)
-    update_hint = f"  {ui.BY}⬆ v{_update_result[0]} available  pip install --upgrade clilap-codepush{ui.R}" if _update_result else ""
+    update_sub = f"{ui.BY}⬆ v{_update_result[0]} が利用可能です{ui.R}  {ui.D}pip install --upgrade clilap-codepush{ui.R}" if _update_result else ""
     while True:
         action = ui.menu(
-            f"clilap codepush  {DC}v{__version__}{R}{update_hint}",
+            f"clilap codepush  {DC}v{__version__}{R}",
             items,
+            subtitle=update_sub,
         )
         if action is None:
             ui.clear()
