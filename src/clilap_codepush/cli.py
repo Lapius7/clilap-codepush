@@ -12,12 +12,15 @@ def _check_update() -> None:
     try:
         import urllib.request
         with urllib.request.urlopen(
-            "https://pypi.org/pypi/clilap-codepush/json", timeout=15
+            "https://api.github.com/repos/Lapius7/clilap-codepush/tags",
+            timeout=10
         ) as r:
-            data = json.loads(r.read())
-        latest = data["info"]["version"]
-        if latest != __version__:
-            _update_result.append(latest)
+            tags = json.loads(r.read())
+        if not tags:
+            return
+        latest_tag = tags[0]["name"].lstrip("v")
+        if latest_tag != __version__:
+            _update_result.append(latest_tag)
     except Exception:
         pass
 
