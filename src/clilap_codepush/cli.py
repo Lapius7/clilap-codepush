@@ -445,16 +445,9 @@ def screen_purge(cfg: dict) -> None:
 # ── Main menu ─────────────────────────────────────────────────────────────────
 
 MAIN_ITEMS = [
-    {"label": "アップロード",         "value": "upload",  "hint": "ファイルをアップロード"},
-    {"label": "ダウンロード / 表示",  "value": "get",     "hint": "ペーストを取得"},
-    {"label": "Health チェック",      "value": "health",  "hint": "サーバー状態確認"},
-    {"label": "─────────────────",    "value": "__sep__"},
-    {"label": "管理: Stats",          "value": "stats",   "hint": "統計情報"},
-    {"label": "管理: ペースト一覧",   "value": "pastes",  "hint": "ペースト管理"},
-    {"label": "管理: グループ一覧",   "value": "groups",  "hint": "グループ管理"},
-    {"label": "管理: Purge",          "value": "purge",   "hint": "不要データ削除", "danger": True},
-    {"label": "─────────────────",    "value": "__sep__"},
-    {"label": "セットアップ",         "value": "setup",   "hint": "トークン設定"},
+    {"label": "アップロード",        "value": "upload", "hint": "ファイルをアップロード"},
+    {"label": "ダウンロード / 表示", "value": "get",    "hint": "ペーストを取得"},
+    {"label": "Health チェック",     "value": "health", "hint": "サーバー状態確認"},
 ]
 
 def _run_action(action: str, cfg: dict) -> None:
@@ -496,16 +489,10 @@ Commands:
   upload <file>   ファイルをアップロード
   get <id>        ペーストを stdout に出力
   health          サーバー状態確認
-  setup           管理者トークンを設定
-  stats           管理: 統計情報
-  pastes          管理: ペースト一覧
-  groups          管理: グループ一覧
-  purge           管理: 不要データ削除
   help, --help    このヘルプを表示
 
 Environment:
-  CODEPUSH_URL         API ベース URL (default: {BASE_URL})
-  CODEPUSH_ADMIN_URL   管理 URL       (default: {ADMIN_URL})
+  CODEPUSH_URL    API ベース URL (default: {BASE_URL})
 """)
 
 def main() -> None:
@@ -520,22 +507,12 @@ def main() -> None:
 
     if cmd in ("help", "--help", "-h"):
         _print_help()
-    elif cmd == "setup":
-        screen_setup()
     elif cmd == "health":
         screen_health()
     elif cmd == "upload":
         screen_upload(args[1] if len(args) > 1 else None)
     elif cmd == "get":
         screen_get(args[1] if len(args) > 1 else None)
-    elif cmd == "stats":
-        screen_stats(cfg)
-    elif cmd == "pastes":
-        screen_pastes(cfg)
-    elif cmd == "groups":
-        screen_groups(cfg)
-    elif cmd == "purge":
-        screen_purge(cfg)
     else:
         ui.wl(f"  {BR}不明なコマンド: {cmd}{R}")
         _print_help()
