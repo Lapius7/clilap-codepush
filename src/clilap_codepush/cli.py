@@ -60,9 +60,9 @@ def _ts(iso: str | None) -> str:
 
 def _size(n: int | None) -> str:
     if n is None: return f"{D}—{R}"
-    if n < 1024:   return f"{n}B"
-    if n < 1048576: return f"{n/1024:.1f}KB"
-    return f"{n/1048576:.1f}MB"
+    if n < 1024:   return f"{n} B"
+    if n < 1048576: return f"{n/1024:.1f} KB"
+    return f"{n/1048576:.1f} MB"
 
 def _short(s: str | None, n: int = 8) -> str:
     if not s: return f"{D}—{R}"
@@ -187,9 +187,10 @@ def screen_upload(args_file: str | None = None) -> None:
         ui.wl(ui.detail_row("file",   f"{filename}  {D}({lang}, {size}){R}"))
         if dk:
             ui.wl(ui.div())
-            ui.wl(ui.detail_row("管理キー", f"{BR}{dk}{R}  {D}(keys.json 保存済み){R}"))
-            ui.wl(f"  {D}  curl clilap.org/cp/{pid} -F file=@new.py -F key={dk}{R}")
-            ui.wl(f"  {D}  curl clilap.org/cp -X DELETE -d key={dk}{R}")
+            ui.wl(ui.detail_row("管理キー", f"{BR}{dk}{R}"))
+            ui.wl(f"  {D}              curl clilap.org/cp/{pid} -F file=@new.py -F key={dk}{R}")
+            ui.wl(f"  {D}              curl clilap.org/cp -X DELETE -d key={dk}{R}")
+            ui.wl(f"  {D}              curl clilap.org/cp/stats/{pid}{R}")
         ui.wl(ui.sep())
         ui.wl(f"  {D}c URLをコピー  u 上書き  q 戻る{R}")
         while True:
