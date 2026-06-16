@@ -179,9 +179,9 @@ def screen_upload(args_file: str | None = None) -> None:
         ttl = None
     else:
         ttl = int(ttl_choice)
-    group = ui.prompt("グループID (空=なし):", allow_empty=True) or None
     cfg = _load_cfg()
-    token = cfg.get("admin_token") or ui.prompt("トークン:", allow_empty=True) or None
+    group = None
+    token = cfg.get("admin_token") or None
 
     err = None
     result = None
