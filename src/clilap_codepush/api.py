@@ -54,15 +54,11 @@ def upload(content: bytes, filename: str, *, ttl: int | None = None,
     return _json("POST", url, data=content, headers=hdrs)
 
 def get_raw(paste_id: str) -> bytes:
-    url = f"{BASE_URL}/paste/{paste_id}/raw"
+    url = f"{BASE_URL}/{paste_id}/raw"
     status, body = _req("GET", url)
     if status >= 400:
         raise ApiError(body.decode(errors="replace"), status)
     return body
-
-def delete_paste(paste_id: str, token: str) -> dict:
-    url = f"{BASE_URL}/paste/{paste_id}?token={urllib.parse.quote(token)}"
-    return _json("DELETE", url)
 
 def delete_by_key(delete_key: str) -> str:
     """delete_key でペースト削除 (DELETE /cp with key=...)"""

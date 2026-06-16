@@ -172,16 +172,24 @@ def screen_upload(args_file: str | None = None) -> None:
         ui.wl(ui.sep())
         ui.wait_key()
     else:
-        pid = result.get("id", "")
-        dk  = result.get("delete_key", "")
-        raw_url = f"{BASE_URL}/paste/{pid}/raw"
+        pid     = result.get("id", "")
+        dk      = result.get("delete_key", "")
+        url     = result.get("url", f"{BASE_URL}/{pid}")
+        raw_url = result.get("raw", f"{BASE_URL}/{pid}/raw")
+        lang    = result.get("language", "")
+        size    = _size(result.get("size"))
         if pid and dk:
             _save_key(pid, dk, filename)
         ui.wl(f"  {BG}✓ アップロード完了{R}")
-        ui.wl(ui.detail_row("ID",       pid))
-        ui.wl(ui.detail_row("URL",      raw_url))
+        ui.wl(ui.div())
+        ui.wl(ui.detail_row("url",    f"{BC}{url}{R}"))
+        ui.wl(ui.detail_row("raw",    f"{DC}{raw_url}{R}"))
+        ui.wl(ui.detail_row("file",   f"{filename}  {D}({lang}, {size}){R}"))
         if dk:
-            ui.wl(ui.detail_row("管理キー", f"{BR}{dk}{R}  {D}(keys.json に保存済み){R}"))
+            ui.wl(ui.div())
+            ui.wl(ui.detail_row("管理キー", f"{BR}{dk}{R}  {D}(keys.json 保存済み){R}"))
+            ui.wl(f"  {D}  curl clilap.org/cp/{pid} -F file=@new.py -F key={dk}{R}")
+            ui.wl(f"  {D}  curl clilap.org/cp -X DELETE -d key={dk}{R}")
         ui.wl(ui.sep())
         ui.wl(f"  {D}c URLをコピー  u 上書き  q 戻る{R}")
         while True:
@@ -189,10 +197,10 @@ def screen_upload(args_file: str | None = None) -> None:
             if key in ("q", "esc", "ctrl_c", "enter"):
                 break
             if key == "c":
-                ok = ui.copy_to_clipboard(raw_url)
+                ok = ui.copy_to_clipboard(url)
                 ui.clear_line()
                 if ok:
-                    ui.wl(f"  {BG}✓ コピーしました:{R} {raw_url}")
+                    ui.wl(f"  {BG}✓ コピーしました:{R} {url}")
                 else:
                     ui.wl(f"  {BY}クリップボードツールが見つかりません{R}")
                 ui.wait_key()
@@ -280,18 +288,20 @@ def screen_my_file_detail(item: dict) -> None:
         ui.wl(ui.sep())
         ui.wl(f"  {BC}ファイル詳細{R}")
         ui.wl(ui.div())
-        raw_url = f"{BASE_URL}/paste/{pid}/raw"
+        url     = f"{BASE_URL}/{pid}"
+        raw_url = f"{BASE_URL}/{pid}/raw"
         ui.wl(ui.detail_row("ID",         pid))
         ui.wl(ui.detail_row("ファイル名",  item.get("filename", "")))
         ui.wl(ui.detail_row("アップロード", item.get("uploaded_at", "")[:16]))
+        ui.wl(ui.detail_row("url",        f"{BC}{url}{R}"))
+        ui.wl(ui.detail_row("raw",        f"{DC}{raw_url}{R}"))
         ui.wl(ui.detail_row("管理キー",   f"{BR}{dk}{R}"))
-        ui.wl(ui.detail_row("RAW URL",    raw_url))
         ui.wl(ui.sep())
         ui.wl(f"  {D}c URLコピー  d 削除  u 上書き  q 戻る{R}")
         key = ui.getch()
         if key in ("q", "esc", "ctrl_c"): return
         if key == "c":
-            ok = ui.copy_to_clipboard(raw_url)
+            ok = ui.copy_to_clipboard(url)
             ui.clear_line()
             ui.wl(f"  {BG}✓ コピーしました{R}" if ok else f"  {BY}クリップボードツールが見つかりません{R}")
             ui.wait_key()
@@ -363,7 +373,7 @@ def screen_update_file(item: dict) -> None:
         _save_key(pid, dk, path.name)
         ui.wl(f"  {BG}✓ 上書き完了{R}")
         ui.wl(ui.detail_row("ID",  pid))
-        ui.wl(ui.detail_row("URL", f"{BASE_URL}/paste/{pid}/raw"))
+        ui.wl(ui.detail_row("URL", f"{BASE_URL}/{pid}/raw"))
     ui.wl(ui.sep())
     ui.wait_key()
 

@@ -1,2 +1,2 @@
 """clilap codepush CLI client."""
-__version__ = "1.0.24"
+__version__ = "1.0.25"
