@@ -12,7 +12,7 @@ def _check_update() -> None:
     try:
         import urllib.request
         with urllib.request.urlopen(
-            "https://pypi.org/pypi/clilap-codepush/json", timeout=5
+            "https://pypi.org/pypi/clilap-codepush/json", timeout=15
         ) as r:
             data = json.loads(r.read())
         latest = data["info"]["version"]
@@ -21,13 +21,11 @@ def _check_update() -> None:
     except Exception:
         pass
 
-def _start_update_check() -> threading.Thread:
+def _start_update_check() -> None:
     t = threading.Thread(target=_check_update, daemon=True)
     t.start()
-    return t
 
-def _show_update_banner(t: threading.Thread) -> None:
-    t.join(timeout=2)
+def _show_update_banner() -> None:
     if _update_result:
         latest = _update_result[0]
         ui.wl(f"  {ui.BY}⬆ アップデートあり:{ui.R}  {ui.D}v{__version__}{ui.R} → {ui.BG}v{latest}{ui.R}  {ui.D}pip install --upgrade clilap-codepush{ui.R}")
@@ -710,11 +708,9 @@ def _run_action(action: str, cfg: dict) -> None:
     elif action == "purge":  screen_purge(cfg)
     elif action == "setup":  screen_setup()
 
-def interactive_menu(update_thread: threading.Thread | None = None) -> None:
+def interactive_menu() -> None:
     items = [i for i in MAIN_ITEMS if i["value"] != "__sep__"]
     cfg = _load_cfg()
-    if update_thread:
-        update_thread.join(timeout=5)
     while True:
         update_sub = f"{ui.BY}⬆ v{_update_result[0]} が利用可能です{ui.R}  {ui.D}pip install --upgrade clilap-codepush{ui.R}" if _update_result else ""
         action = ui.menu(
@@ -753,15 +749,15 @@ Environment:
 
 def main() -> None:
     args = sys.argv[1:]
-    _t = _start_update_check()
+    _start_update_check()
 
     if not args:
-        interactive_menu(_t)
+        interactive_menu()
         return
 
     cmd = args[0].lower()
     cfg = _load_cfg()
-    _show_update_banner(_t)
+    _show_update_banner()
 
     if cmd in ("help", "--help", "-h"):
         _print_help()
