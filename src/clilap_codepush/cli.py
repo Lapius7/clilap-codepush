@@ -1,38 +1,9 @@
 """clilap codepush CLI — interactive TUI entry point."""
 from __future__ import annotations
-import sys, os, json, pathlib, datetime, re, threading
+import sys, os, json, pathlib, datetime, re
 
 from . import __version__
 from . import ui
-
-# ── Update check ──────────────────────────────────────────────────────────────
-_update_result: list[str] = []  # [latest_version] if newer, else []
-
-def _check_update() -> None:
-    try:
-        import urllib.request
-        with urllib.request.urlopen(
-            "https://api.github.com/repos/Lapius7/clilap-codepush/tags",
-            timeout=10
-        ) as r:
-            tags = json.loads(r.read())
-        if not tags:
-            return
-        latest_tag = tags[0]["name"].lstrip("v")
-        if latest_tag != __version__:
-            _update_result.append(latest_tag)
-    except Exception:
-        pass
-
-def _start_update_check() -> None:
-    t = threading.Thread(target=_check_update, daemon=True)
-    t.start()
-
-def _show_update_banner() -> None:
-    if _update_result:
-        latest = _update_result[0]
-        ui.wl(f"  {ui.BY}⬆ アップデートあり:{ui.R}  {ui.D}v{__version__}{ui.R} → {ui.BG}v{latest}{ui.R}  {ui.D}pip install --upgrade clilap-codepush{ui.R}")
-        ui.wl()
 from .api import (
     AdminApi, ApiError, upload, get_raw, delete_paste, health,
     delete_by_key, update_paste, get_diff,
@@ -714,16 +685,10 @@ def _run_action(action: str, cfg: dict) -> None:
 def interactive_menu() -> None:
     items = [i for i in MAIN_ITEMS if i["value"] != "__sep__"]
     cfg = _load_cfg()
-    def _update_sub() -> str:
-        if _update_result:
-            return f"{ui.BY}⬆ v{_update_result[0]} が利用可能です{ui.R}  {ui.D}pip install --upgrade clilap-codepush{ui.R}"
-        return ""
-
     while True:
         action = ui.menu(
             f"clilap codepush  {DC}v{__version__}{R}",
             items,
-            subtitle_fn=_update_sub,
         )
         if action is None:
             ui.clear()
@@ -756,7 +721,6 @@ Environment:
 
 def main() -> None:
     args = sys.argv[1:]
-    _start_update_check()
 
     if not args:
         interactive_menu()
@@ -764,7 +728,6 @@ def main() -> None:
 
     cmd = args[0].lower()
     cfg = _load_cfg()
-    _show_update_banner()
 
     if cmd in ("help", "--help", "-h"):
         _print_help()
