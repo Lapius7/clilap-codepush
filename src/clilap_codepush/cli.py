@@ -140,8 +140,15 @@ def screen_upload(args_file: str | None = None) -> None:
         return
 
     filename = path.name
-    ttl_raw = ui.prompt("TTL (秒, 空=無期限:", allow_empty=True) or ""
-    ttl = int(ttl_raw) if ttl_raw.isdigit() else None
+    ttl_choice = ui.menu("有効期限", [
+        {"label": "無期限",  "value": "0"},
+        {"label": "1時間",   "value": str(3600)},
+        {"label": "1日",     "value": str(86400)},
+        {"label": "7日",     "value": str(86400 * 7)},
+        {"label": "30日",    "value": str(86400 * 30)},
+    ], back=True)
+    if ttl_choice is None: return
+    ttl = int(ttl_choice) if ttl_choice != "0" else None
     group = ui.prompt("グループID (空=なし):", allow_empty=True) or None
     cfg = _load_cfg()
     token = cfg.get("admin_token") or ui.prompt("トークン:", allow_empty=True) or None
