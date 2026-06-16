@@ -57,14 +57,17 @@ def _parse_duration(s: str) -> int | None:
     total = sum(int(n) * units[u] for n, u in matches)
     return total if total > 0 else None
 
+_JST = datetime.timezone(datetime.timedelta(hours=9))
+
 def _ts(iso) -> str:
     if not iso: return f"{D}—{R}"
     try:
         if isinstance(iso, (int, float)):
-            dt = datetime.datetime.fromtimestamp(iso, tz=datetime.timezone.utc)
-            return dt.strftime("%Y-%m-%d %H:%M")
-        dt = datetime.datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
-        return dt.strftime("%Y-%m-%d %H:%M")
+            dt = datetime.datetime.fromtimestamp(iso, tz=_JST)
+        else:
+            dt = datetime.datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+            dt = dt.astimezone(_JST) if dt.tzinfo else dt.replace(tzinfo=_JST)
+        return dt.strftime("%Y-%m-%d %H:%M JST")
     except Exception:
         return str(iso)[:16]
 
@@ -345,7 +348,7 @@ def screen_my_file_detail(item: dict) -> None:
         ui.wl(ui.detail_row("ID",         pid))
         ui.wl(ui.detail_row("ファイル名",  item.get("filename", "")))
         ui.wl(ui.detail_row("file",       f"{D}({lang}, {size}){R}" if lang else f"{D}{size}{R}"))
-        ui.wl(ui.detail_row("アップロード", item.get("uploaded_at", "")[:16]))
+        ui.wl(ui.detail_row("アップロード", _ts(item.get("uploaded_at"))))
         ui.wl(ui.detail_row("有効期限",   _ts(exp_at) if exp_at else f"{D}無期限{R}"))
         ui.wl(ui.detail_row("url",        f"{BC}{url}{R}"))
         ui.wl(ui.detail_row("raw",        f"{DC}{raw_url}{R}"))
