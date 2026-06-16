@@ -1,9 +1,37 @@
 """clilap codepush CLI — interactive TUI entry point."""
 from __future__ import annotations
-import sys, os, json, pathlib, datetime, re
+import sys, os, json, pathlib, datetime, re, threading
 
 from . import __version__
 from . import ui
+
+# ── Update check ──────────────────────────────────────────────────────────────
+_update_result: list[str] = []  # [latest_version] if newer, else []
+
+def _check_update() -> None:
+    try:
+        import urllib.request
+        with urllib.request.urlopen(
+            "https://pypi.org/pypi/clilap-codepush/json", timeout=3
+        ) as r:
+            data = json.loads(r.read())
+        latest = data["info"]["version"]
+        if latest != __version__:
+            _update_result.append(latest)
+    except Exception:
+        pass
+
+def _start_update_check() -> threading.Thread:
+    t = threading.Thread(target=_check_update, daemon=True)
+    t.start()
+    return t
+
+def _show_update_banner(t: threading.Thread) -> None:
+    t.join(timeout=2)
+    if _update_result:
+        latest = _update_result[0]
+        ui.wl(f"  {ui.BY}⬆ アップデートあり:{ui.R}  {ui.D}v{__version__}{ui.R} → {ui.BG}v{latest}{ui.R}  {ui.D}pip install --upgrade clilap-codepush{ui.R}")
+        ui.wl()
 from .api import (
     AdminApi, ApiError, upload, get_raw, delete_paste, health,
     delete_by_key, update_paste, get_diff,
@@ -668,12 +696,15 @@ def _run_action(action: str, cfg: dict) -> None:
     elif action == "purge":  screen_purge(cfg)
     elif action == "setup":  screen_setup()
 
-def interactive_menu() -> None:
+def interactive_menu(update_thread: threading.Thread | None = None) -> None:
     items = [i for i in MAIN_ITEMS if i["value"] != "__sep__"]
     cfg = _load_cfg()
+    if update_thread:
+        update_thread.join(timeout=2)
+    update_hint = f"  {ui.BY}⬆ v{_update_result[0]} available  pip install --upgrade clilap-codepush{ui.R}" if _update_result else ""
     while True:
         action = ui.menu(
-            f"clilap codepush  {DC}v{__version__}{R}",
+            f"clilap codepush  {DC}v{__version__}{R}{update_hint}",
             items,
         )
         if action is None:
@@ -707,13 +738,15 @@ Environment:
 
 def main() -> None:
     args = sys.argv[1:]
+    _t = _start_update_check()
 
     if not args:
-        interactive_menu()
+        interactive_menu(_t)
         return
 
     cmd = args[0].lower()
     cfg = _load_cfg()
+    _show_update_banner(_t)
 
     if cmd in ("help", "--help", "-h"):
         _print_help()

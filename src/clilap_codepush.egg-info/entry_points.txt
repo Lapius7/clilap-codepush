@@ -1,3 +1,0 @@
-[console_scripts]
-codepush = clilap_codepush.cli:main
-cp = clilap_codepush.cli:main
