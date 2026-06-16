@@ -77,10 +77,8 @@ def screen_setup() -> None:
     ui.wl(f"  管理者トークンを入力してください。")
     ui.wl(f"  {D}admin.clilap.org/cp?token=... のトークン{R}")
     ui.wl()
-    ui.show_cursor()
-    token = input(f"  {BC}トークン:{R} ").strip()
+    token = ui.prompt("トークン:")
     if not token:
-        ui.wl(f"  {BR}キャンセル{R}")
         return
     cfg = _load_cfg()
     cfg["admin_token"] = token
@@ -128,12 +126,12 @@ def screen_upload(args_file: str | None = None) -> None:
     ui.wl(ui.sep())
     ui.wl(f"  {BC}ファイルアップロード{R}")
     ui.wl(ui.div())
-    ui.show_cursor()
 
     if args_file:
         path = pathlib.Path(args_file)
     else:
-        raw = input(f"  {BC}ファイルパス:{R} ").strip()
+        raw = ui.prompt("ファイルパス:")
+        if raw is None: return
         path = pathlib.Path(raw)
 
     if not path.exists():
@@ -142,11 +140,11 @@ def screen_upload(args_file: str | None = None) -> None:
         return
 
     filename = path.name
-    ttl_raw = input(f"  {BC}TTL (秒, 空=無期限):{R} ").strip()
+    ttl_raw = ui.prompt("TTL (秒, 空=無期限:", allow_empty=True) or ""
     ttl = int(ttl_raw) if ttl_raw.isdigit() else None
-    group = input(f"  {BC}グループID (空=なし):{R} ").strip() or None
+    group = ui.prompt("グループID (空=なし):", allow_empty=True) or None
     cfg = _load_cfg()
-    token = cfg.get("admin_token") or input(f"  {BC}トークン:{R} ").strip() or None
+    token = cfg.get("admin_token") or ui.prompt("トークン:", allow_empty=True) or None
 
     err = None
     result = None
@@ -183,9 +181,7 @@ def screen_get(args_id: str | None = None) -> None:
         ui.wl(ui.div())
 
     _draw()
-    ui.show_cursor()
-
-    pid = args_id or input(f"  {BC}Paste ID:{R} ").strip()
+    pid = args_id or ui.prompt("Paste ID:")
     if not pid:
         return
 
@@ -209,8 +205,7 @@ def screen_get(args_id: str | None = None) -> None:
         return
 
     _draw()
-    ui.show_cursor()
-    out_raw = input(f"  {BC}保存先ファイル (空=stdout):{R} ").strip()
+    out_raw = ui.prompt("保存先ファイル (空=stdout):", allow_empty=True) or ""
     if out_raw:
         pathlib.Path(out_raw).write_bytes(data)
         ui.wl(f"  {BG}✓ 保存:{R} {out_raw}")
@@ -313,8 +308,8 @@ def screen_update_file(item: dict) -> None:
     ui.wl(ui.sep())
     ui.wl(f"  {BC}ファイル上書き{R}  {D}{filename}{R}")
     ui.wl(ui.div())
-    ui.show_cursor()
-    raw = input(f"  {BC}新しいファイルパス:{R} ").strip()
+    raw = ui.prompt("新しいファイルパス:")
+    if raw is None: return
     path = pathlib.Path(raw)
     if not path.exists():
         ui.wl(f"  {BR}✗ ファイルが見つかりません{R}")
@@ -345,11 +340,10 @@ def screen_diff() -> None:
     ui.wl(ui.sep())
     ui.wl(f"  {BC}Diff (2ファイル比較){R}")
     ui.wl(ui.div())
-    ui.show_cursor()
-    id1 = input(f"  {BC}Paste ID 1:{R} ").strip()
-    id2 = input(f"  {BC}Paste ID 2:{R} ").strip()
-    if not id1 or not id2:
-        return
+    id1 = ui.prompt("Paste ID 1:")
+    if not id1: return
+    id2 = ui.prompt("Paste ID 2:")
+    if not id2: return
     err = None
     result = None
     with ui.Spinner("diff 取得中..."):
@@ -443,9 +437,10 @@ def screen_pastes(cfg: dict) -> None:
         if r.action == "prev" and page > 1: page -= 1
         if r.action == "refresh": pass
         if r.action == "search":
-            ui.show_cursor()
-            search = input(f"  {BC}検索キーワード:{R} ").strip()
-            page = 1
+            s = ui.prompt("検索キーワード:", allow_empty=True)
+            if s is not None:
+                search = s
+                page = 1
         if r.action == "select" and r.item:
             screen_paste_detail(adm, r.item.get("id", ""))
         if r.action == "delete" and r.item:
@@ -517,8 +512,7 @@ def screen_paste_content(adm: AdminApi, pid: str, filename: str) -> None:
     if len(lines) > visible:
         ui.wl(f"  {D}... 残り {len(lines)-visible} 行 (保存して全文を確認){R}")
     ui.wl(ui.sep())
-    ui.show_cursor()
-    save = input(f"  {D}保存先ファイル (空=スキップ):{R} ").strip()
+    save = ui.prompt("保存先ファイル (空=スキップ):", allow_empty=True) or ""
     if save:
         pathlib.Path(save).write_text(content)
         ui.wl(f"  {BG}✓ 保存:{R} {save}")
@@ -720,6 +714,14 @@ Environment:
 """)
 
 def main() -> None:
+    try:
+        _main()
+    except KeyboardInterrupt:
+        ui.show_cursor()
+        print()
+        sys.exit(0)
+
+def _main() -> None:
     args = sys.argv[1:]
 
     if not args:

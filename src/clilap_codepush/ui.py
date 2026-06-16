@@ -281,3 +281,12 @@ def wait_key() -> None:
         getch()
     except Exception:
         input()
+
+def prompt(label: str, default: str = "", allow_empty: bool = False) -> str | None:
+    """入力プロンプト。空Enterまたはq入力でNoneを返す(戻る)。"""
+    show_cursor()
+    wl(f"  {D}空Enter または q で戻る{R}")
+    raw = input(f"  {BC}{label}{R} ").strip()
+    if raw.lower() == "q" or (not raw and not allow_empty):
+        return None
+    return raw
