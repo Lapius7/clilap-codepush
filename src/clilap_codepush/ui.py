@@ -1,7 +1,7 @@
 """Terminal UI primitives — pure stdlib, no dependencies."""
 from __future__ import annotations
-import sys, os, shutil
-from typing import Any, Callable, TypeVar
+import sys, os, shutil, subprocess
+from typing import Any, TypeVar
 
 try:
     import tty, termios
@@ -21,7 +21,7 @@ BY  = "\x1b[1;33m"
 BW  = "\x1b[1;37m"
 BR  = "\x1b[1;31m"
 BB  = "\x1b[1;34m"
-SEL = "\x1b[48;5;24m"   # selected row bg
+SEL = "\x1b[48;5;24m"
 
 def _strip(s: str) -> str:
     import re
@@ -60,7 +60,15 @@ def header(title: str) -> str:
     ]
     return "\n".join(lines)
 
-# ── Keypress (Unix only) ──────────────────────────────────────────────────────
+def error_box(msg: str) -> None:
+    """赤いエラーボックス表示"""
+    width = min(cols(), 90)
+    inner = f" ✗  {msg} "
+    wl(BR + "╔" + "═" * (width - 2) + "╗" + R)
+    wl(BR + "║" + R + f"{BR}{inner:<{width-2}}{R}" + BR + "║" + R)
+    wl(BR + "╚" + "═" * (width - 2) + "╝" + R)
+
+# ── Keypress ──────────────────────────────────────────────────────────────────
 _KEY_MAP = {
     "\x1b[A": "up", "\x1b[B": "down", "\x1b[C": "right", "\x1b[D": "left",
     "\r": "enter", "\n": "enter", "\x7f": "backspace", "\x1b": "esc",
@@ -94,7 +102,7 @@ def _getch_windows() -> str:
     try:
         import msvcrt
         ch = msvcrt.getwch()
-        if ch in ("\x00", "\xe0"):  # special key prefix
+        if ch in ("\x00", "\xe0"):
             ch2 = msvcrt.getwch()
             return {"H": "up", "P": "down", "K": "left", "M": "right"}.get(ch2, ch2)
         if ch == "\r": return "enter"
@@ -103,15 +111,6 @@ def _getch_windows() -> str:
         return ch
     except Exception:
         return input()
-
-def readline_prompt(prompt: str, default: str = "") -> str:
-    show_cursor()
-    w(prompt)
-    if default:
-        w(default)
-    sys.stdout.flush()
-    line = sys.stdin.readline().rstrip("\n")
-    return line if line else default
 
 def confirm(msg: str) -> bool:
     w(f"  {BY}?{R} {msg} {D}[y/N]{R} ")
@@ -123,6 +122,32 @@ def confirm(msg: str) -> bool:
     result = key.lower() == "y"
     wl(f"{BG}y{R}" if result else f"{BR}n{R}")
     return result
+
+# ── Clipboard ─────────────────────────────────────────────────────────────────
+def copy_to_clipboard(text: str) -> bool:
+    """テキストをクリップボードにコピー。成功したらTrue。"""
+    try:
+        if sys.platform == "win32":
+            subprocess.run(["clip"], input=text.encode("utf-16-le"), check=True,
+                           capture_output=True)
+            return True
+        if sys.platform == "darwin":
+            subprocess.run(["pbcopy"], input=text.encode(), check=True,
+                           capture_output=True)
+            return True
+        # Linux: xclip or xsel or wl-copy
+        for cmd in (["xclip", "-selection", "clipboard"],
+                    ["xsel", "--clipboard", "--input"],
+                    ["wl-copy"]):
+            try:
+                subprocess.run(cmd, input=text.encode(), check=True,
+                               capture_output=True)
+                return True
+            except (FileNotFoundError, subprocess.CalledProcessError):
+                continue
+    except Exception:
+        pass
+    return False
 
 # ── Spinner ───────────────────────────────────────────────────────────────────
 import threading, time
@@ -156,7 +181,6 @@ class Spinner:
 
 # ── Menu ──────────────────────────────────────────────────────────────────────
 def menu(title: str, items: list[dict], back: bool = False) -> str | None:
-    """Arrow-key driven menu. Returns selected value or None (back/quit)."""
     opts = list(items)
     if back:
         opts.append({"label": "← 戻る", "value": "__back__"})
@@ -165,10 +189,8 @@ def menu(title: str, items: list[dict], back: bool = False) -> str | None:
 
     def draw(first: bool = False):
         if first:
-            # 初回のみ完全クリア
             clear()
         else:
-            # 再描画: カーソルをホームに戻して上書き（ガクつきなし）
             w("\x1b[H")
         wl(sep())
         wl(f"  {BC}{title}{R}")
@@ -178,12 +200,13 @@ def menu(title: str, items: list[dict], back: bool = False) -> str | None:
             arrow = f"{BC}▶{R}" if sel else " "
             bg    = SEL if sel else ""
             end   = R if sel else ""
+            icon  = item.get("icon", "")
+            icon_str = f"{icon} " if icon else ""
             label = item["label"]
             if item.get("danger"):
                 label = f"{BR}{label}{R}"
             hint = f"  {D}{item['hint']}{R}" if item.get("hint") else ""
-            # 行末を空白で埋めて前の内容を消す
-            line = f"  {arrow} {bg}{BW if sel else ''}{label}{end}{hint}"
+            line = f"  {arrow} {bg}{BW if sel else ''}{icon_str}{label}{end}{hint}"
             w(line + "\x1b[K\n")
         wl(sep())
         w(f"  {D}↑↓ 移動  Enter 選択  q 終了{R}\x1b[K")
@@ -242,7 +265,7 @@ def table(
             wl(f"{arrow} {bg}{cells}{end}")
         wl(sep())
         keys_parts = ["↑↓ 移動", "Enter 選択"]
-        if total and page > 1:            keys_parts.append("p 前")
+        if total and page > 1:                keys_parts.append("p 前")
         if total and page * page_size < total: keys_parts.append("n 次")
         for ek in (extra_keys or []):
             keys_parts.append(f"{ek['key']} {ek['label']}")
@@ -261,7 +284,7 @@ def table(
             if key == "r":      return TableResult("refresh")
             if key == "n":      return TableResult("next")
             if key == "p":      return TableResult("prev")
-            if key == "up"   and idx > 0:           idx -= 1; draw()
+            if key == "up"   and idx > 0:            idx -= 1; draw()
             elif key == "down" and idx < len(items)-1: idx += 1; draw()
             elif key == "enter" and items:
                 return TableResult("select", items[idx])
@@ -271,11 +294,58 @@ def table(
     finally:
         show_cursor()
 
+# ── Scrollable pager ──────────────────────────────────────────────────────────
+def pager(title: str, lines: list[str]) -> None:
+    """j/k/↑↓ スクロール、q で戻るビューア"""
+    scroll = 0
+
+    def draw():
+        clear()
+        visible = rows() - 6
+        wl(sep())
+        total_lines = len(lines)
+        wl(f"  {BC}{title}{R}  {D}({scroll+1}-{min(scroll+visible, total_lines)}/{total_lines}行){R}")
+        wl(div())
+        for line in lines[scroll:scroll + visible]:
+            wl("  " + line[:cols() - 4])
+        # fill remaining lines to avoid leftover content
+        shown = min(visible, total_lines - scroll)
+        for _ in range(visible - shown):
+            wl()
+        wl(sep())
+        w(f"  {D}↑↓/jk スクロール  q 戻る{R}\x1b[K")
+
+    hide_cursor()
+    draw()
+    try:
+        while True:
+            key = getch()
+            if key in ("q", "esc", "ctrl_c"):
+                return
+            max_scroll = max(0, len(lines) - (rows() - 6))
+            if key in ("down", "j") and scroll < max_scroll:
+                scroll += 1; draw()
+            elif key in ("up", "k") and scroll > 0:
+                scroll -= 1; draw()
+    finally:
+        show_cursor()
+
+# ── Diff viewer ───────────────────────────────────────────────────────────────
+def colorize_diff_line(line: str) -> str:
+    if line.startswith("+") and not line.startswith("+++"):
+        return BG + line + R
+    if line.startswith("-") and not line.startswith("---"):
+        return BR + line + R
+    if line.startswith("@@"):
+        return BC + line + R
+    if line.startswith("---") or line.startswith("+++"):
+        return BW + line + R
+    return D + line + R
+
 def detail_row(label: str, value: str) -> str:
     return f"  {D}{label:<14}{R}  {value}"
 
 def wait_key() -> None:
-    """q/Enter/any key で戻る"""
     wl(f"  {D}q で戻る{R}")
     try:
         getch()
@@ -287,6 +357,9 @@ def prompt(label: str, default: str = "", allow_empty: bool = False) -> str | No
     show_cursor()
     wl(f"  {D}空Enter または q で戻る{R}")
     raw = input(f"  {BC}{label}{R} ").strip()
+    # Windowsドラッグ&ドロップで付く引用符を除去
+    if len(raw) >= 2 and raw[0] in ('"', "'") and raw[-1] == raw[0]:
+        raw = raw[1:-1]
     if raw.lower() == "q" or (not raw and not allow_empty):
         return None
     return raw

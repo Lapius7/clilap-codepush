@@ -100,8 +100,7 @@ def screen_health() -> None:
     ui.wl(f"  {BC}clilap.org/codepush  サーバー状態{R}")
     ui.wl(ui.div())
     if err is not None:
-        ui.wl(f"  {BR}✗ サーバーに接続できません{R}")
-        ui.wl(f"  {D}{err}{R}")
+        ui.error_box(f"サーバーに接続できません: {err}")
     else:
         ok     = data.get("ok", False)
         db_ok  = data.get("db_ok", False)
@@ -166,19 +165,39 @@ def screen_upload(args_file: str | None = None) -> None:
     ui.wl(f"  {BC}ファイルアップロード{R}")
     ui.wl(ui.div())
     if err is not None:
-        ui.wl(f"  {BR}✗ {err}{R}")
+        ui.error_box(str(err))
+        ui.wl(ui.sep())
+        ui.wait_key()
     else:
         pid = result.get("id", "")
         dk  = result.get("delete_key", "")
+        raw_url = f"{BASE_URL}/paste/{pid}/raw"
         if pid and dk:
             _save_key(pid, dk, filename)
         ui.wl(f"  {BG}✓ アップロード完了{R}")
         ui.wl(ui.detail_row("ID",       pid))
-        ui.wl(ui.detail_row("URL",      f"{BASE_URL}/paste/{pid}/raw"))
+        ui.wl(ui.detail_row("URL",      raw_url))
         if dk:
-            ui.wl(ui.detail_row("管理キー", f"{BR}{dk}{R}  {D}(~/.config/clilap-codepush/keys.json に保存済み){R}"))
-    ui.wl(ui.sep())
-    ui.wait_key()
+            ui.wl(ui.detail_row("管理キー", f"{BR}{dk}{R}  {D}(keys.json に保存済み){R}"))
+        ui.wl(ui.sep())
+        ui.wl(f"  {D}c URLをコピー  u 上書き  q 戻る{R}")
+        while True:
+            key = ui.getch()
+            if key in ("q", "esc", "ctrl_c", "enter"):
+                break
+            if key == "c":
+                ok = ui.copy_to_clipboard(raw_url)
+                ui.clear_line()
+                if ok:
+                    ui.wl(f"  {BG}✓ コピーしました:{R} {raw_url}")
+                else:
+                    ui.wl(f"  {BY}クリップボードツールが見つかりません{R}")
+                ui.wait_key()
+                break
+            if key == "u" and pid and dk:
+                item = {"id": pid, "delete_key": dk, "filename": filename}
+                screen_update_file(item)
+                break
 
 def screen_get(args_id: str | None = None) -> None:
     def _draw():
@@ -202,11 +221,7 @@ def screen_get(args_id: str | None = None) -> None:
 
     if err is not None:
         _draw()
-        ui.wl(f"  {BR}✗ {err}{R}")
-        ui.wl()
-        ui.wl(f"  ペーストが見つかりません。削除済みか期限切れの可能性があります。")
-        ui.wl()
-        ui.wl(f"  {D}clilap.org/codepush{R}")
+        ui.error_box(f"{err}  削除済みか期限切れの可能性があります")
         ui.wl(ui.sep())
         ui.wait_key()
         return
@@ -262,15 +277,22 @@ def screen_my_file_detail(item: dict) -> None:
         ui.wl(ui.sep())
         ui.wl(f"  {BC}ファイル詳細{R}")
         ui.wl(ui.div())
+        raw_url = f"{BASE_URL}/paste/{pid}/raw"
         ui.wl(ui.detail_row("ID",         pid))
         ui.wl(ui.detail_row("ファイル名",  item.get("filename", "")))
         ui.wl(ui.detail_row("アップロード", item.get("uploaded_at", "")[:16]))
         ui.wl(ui.detail_row("管理キー",   f"{BR}{dk}{R}"))
-        ui.wl(ui.detail_row("RAW URL",    f"{BASE_URL}/paste/{pid}/raw"))
+        ui.wl(ui.detail_row("RAW URL",    raw_url))
         ui.wl(ui.sep())
-        ui.wl(f"  {D}d 削除  u 上書き  q 戻る{R}")
+        ui.wl(f"  {D}c URLコピー  d 削除  u 上書き  q 戻る{R}")
         key = ui.getch()
         if key in ("q", "esc", "ctrl_c"): return
+        if key == "c":
+            ok = ui.copy_to_clipboard(raw_url)
+            ui.clear_line()
+            ui.wl(f"  {BG}✓ コピーしました{R}" if ok else f"  {BY}クリップボードツールが見つかりません{R}")
+            ui.wait_key()
+            return
         if key == "d":
             screen_delete_file(item)
             return
@@ -358,17 +380,17 @@ def screen_diff() -> None:
             result = get_diff(id1, id2)
         except Exception as e:
             err = e
-    ui.clear()
-    ui.wl(ui.sep())
-    ui.wl(f"  {BC}Diff{R}  {D}{id1[:8]}... ↔ {id2[:8]}...{R}")
-    ui.wl(ui.div())
     if err:
-        ui.wl(f"  {BR}✗ {err}{R}")
+        ui.clear()
+        ui.wl(ui.sep())
+        ui.wl(f"  {BC}Diff{R}")
+        ui.wl(ui.div())
+        ui.error_box(str(err))
+        ui.wl(ui.sep())
+        ui.wait_key()
     else:
-        for line in result.splitlines()[:ui.rows()-8]:
-            ui.wl("  " + line[:ui.cols()-4])
-    ui.wl(ui.sep())
-    ui.wait_key()
+        colored = [ui.colorize_diff_line(l) for l in result.splitlines()]
+        ui.pager(f"Diff  {id1[:8]}... ↔ {id2[:8]}...", colored)
 
 # ── Admin screens ─────────────────────────────────────────────────────────────
 
@@ -508,21 +530,15 @@ def screen_paste_content(adm: AdminApi, pid: str, filename: str) -> None:
             ui.wait_key()
             return
 
-    ui.clear()
-    ui.wl(ui.sep())
-    ui.wl(f"  {BC}{filename}{R}  {D}({pid[:8]}){R}")
-    ui.wl(ui.div())
     lines = content.splitlines()
-    visible = ui.rows() - 8
-    for line in lines[:visible]:
-        ui.wl("  " + line[:ui.cols()-4])
-    if len(lines) > visible:
-        ui.wl(f"  {D}... 残り {len(lines)-visible} 行 (保存して全文を確認){R}")
-    ui.wl(ui.sep())
+    ui.pager(f"{filename}  ({pid[:8]})", lines)
     save = ui.prompt("保存先ファイル (空=スキップ):", allow_empty=True) or ""
     if save:
         pathlib.Path(save).write_text(content)
+        ui.clear()
+        ui.wl(ui.sep())
         ui.wl(f"  {BG}✓ 保存:{R} {save}")
+        ui.wl(ui.sep())
         ui.wait_key()
 
 def screen_groups(cfg: dict) -> None:
@@ -664,11 +680,11 @@ def screen_purge(cfg: dict) -> None:
 # ── Main menu ─────────────────────────────────────────────────────────────────
 
 MAIN_ITEMS = [
-    {"label": "アップロード",        "value": "upload",    "hint": "ファイルをアップロード"},
-    {"label": "ダウンロード / 表示", "value": "get",       "hint": "ペーストを取得"},
-    {"label": "自分のファイル",      "value": "myfiles",   "hint": "アップロード済みの管理・削除・上書き"},
-    {"label": "Diff",                "value": "diff",      "hint": "2ペーストの差分を表示"},
-    {"label": "Health チェック",     "value": "health",    "hint": "サーバー状態確認"},
+    {"label": "アップロード",        "value": "upload",    "hint": "ファイルをアップロード",            "icon": "↑"},
+    {"label": "ダウンロード / 表示", "value": "get",       "hint": "ペーストを取得",                   "icon": "↓"},
+    {"label": "自分のファイル",      "value": "myfiles",   "hint": "アップロード済みの管理・削除・上書き", "icon": "≡"},
+    {"label": "Diff",                "value": "diff",      "hint": "2ペーストの差分を表示",             "icon": "±"},
+    {"label": "Health チェック",     "value": "health",    "hint": "サーバー状態確認",                 "icon": "♥"},
 ]
 
 def _run_action(action: str, cfg: dict) -> None:
