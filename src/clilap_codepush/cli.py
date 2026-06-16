@@ -512,12 +512,7 @@ def main() -> None:
     args = sys.argv[1:]
 
     if not args:
-        # Windows compat: tty unavailable
-        try:
-            import tty, termios
-            interactive_menu()
-        except Exception:
-            _print_help()
+        interactive_menu()
         return
 
     cmd = args[0].lower()

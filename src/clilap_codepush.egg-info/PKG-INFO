@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: clilap-codepush
-Version: 1.0.0
+Version: 1.0.1
 Summary: clilap.org codepush — CLI client with interactive TUI
 Author-email: Lapius7 <20071209ryo@gmail.com>
 License: MIT

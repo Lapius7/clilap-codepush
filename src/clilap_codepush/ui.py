@@ -1,7 +1,13 @@
 """Terminal UI primitives — pure stdlib, no dependencies."""
 from __future__ import annotations
-import sys, os, shutil, tty, termios
+import sys, os, shutil
 from typing import Any, Callable, TypeVar
+
+try:
+    import tty, termios
+    _HAS_TTY = True
+except ImportError:
+    _HAS_TTY = False  # Windows
 
 T = TypeVar("T")
 
@@ -62,16 +68,16 @@ _KEY_MAP = {
 }
 
 def getch() -> str:
+    if not _HAS_TTY:
+        return _getch_windows()
     fd = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
     try:
         tty.setraw(fd)
         ch = sys.stdin.read(1)
         if ch == "\x1b":
-            # read up to 4 more bytes for escape sequences
             seq = ch
             try:
-                tty.setraw(fd)
                 for _ in range(4):
                     c = sys.stdin.read(1)
                     seq += c
@@ -83,6 +89,20 @@ def getch() -> str:
         return _KEY_MAP.get(ch, ch)
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+def _getch_windows() -> str:
+    try:
+        import msvcrt
+        ch = msvcrt.getwch()
+        if ch in ("\x00", "\xe0"):  # special key prefix
+            ch2 = msvcrt.getwch()
+            return {"H": "up", "P": "down", "K": "left", "M": "right"}.get(ch2, ch2)
+        if ch == "\r": return "enter"
+        if ch == "\x03": return "ctrl_c"
+        if ch == "\x1b": return "esc"
+        return ch
+    except Exception:
+        return input()
 
 def readline_prompt(prompt: str, default: str = "") -> str:
     show_cursor()
