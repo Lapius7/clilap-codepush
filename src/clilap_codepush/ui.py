@@ -257,9 +257,13 @@ def table(
     hint: str = "",
 ) -> TableResult:
     idx = 0
+    _first = [True]
 
     def draw():
-        clear()
+        if _first[0]:
+            clear(); _first[0] = False
+        else:
+            w("\x1b[H")
         wl(sep())
         pinfo = f"  {D}{page}/{max(1,(total or 0+page_size-1)//page_size)} ページ  合計: {total}{R}" if total is not None else ""
         wl(f"  {BC}{title}{R}{pinfo}")
@@ -275,7 +279,7 @@ def table(
             end = R if sel else ""
             arrow = f"{BC}▶{R}" if sel else " "
             cells = "  ".join(_pad(c["render"](item, sel), c["width"]) for c in columns)
-            wl(f"{arrow} {bg}{cells}{end}")
+            wl(f"{arrow} {bg}{cells}{end}\x1b[K")
         wl(sep())
         keys_parts = ["↑↓ 移動", "Enter 選択"]
         if total and page > 1:                keys_parts.append("p 前")
@@ -283,9 +287,9 @@ def table(
         for ek in (extra_keys or []):
             keys_parts.append(f"{ek['key']} {ek['label']}")
         keys_parts += ["r 更新", "q 戻る"]
-        wl(f"  {D}{'  '.join(keys_parts)}{R}")
+        w(f"  {D}{'  '.join(keys_parts)}{R}\x1b[K")
         if hint:
-            wl(f"  {D}{hint}{R}")
+            w(f"\n  {D}{hint}{R}\x1b[K")
 
     hide_cursor()
     draw()
@@ -311,20 +315,23 @@ def table(
 def pager(title: str, lines: list[str]) -> None:
     """j/k/↑↓ スクロール、q で戻るビューア"""
     scroll = 0
+    _first = [True]
 
     def draw():
-        clear()
+        if _first[0]:
+            clear(); _first[0] = False
+        else:
+            w("\x1b[H")
         visible = rows() - 6
         wl(sep())
         total_lines = len(lines)
         wl(f"  {BC}{title}{R}  {D}({scroll+1}-{min(scroll+visible, total_lines)}/{total_lines}行){R}")
         wl(div())
         for line in lines[scroll:scroll + visible]:
-            wl("  " + line[:cols() - 4])
-        # fill remaining lines to avoid leftover content
+            w("  " + line[:cols() - 4] + "\x1b[K\n")
         shown = min(visible, total_lines - scroll)
         for _ in range(visible - shown):
-            wl()
+            w("\x1b[K\n")
         wl(sep())
         w(f"  {D}↑↓/jk スクロール  q 戻る{R}\x1b[K")
 
@@ -355,8 +362,34 @@ def colorize_diff_line(line: str) -> str:
         return BW + line + R
     return D + line + R
 
+def _wcswidth(s: str) -> int:
+    """East-Asian width aware string display width."""
+    w = 0
+    for c in s:
+        cp = ord(c)
+        if (0x1100 <= cp <= 0x115F or 0x2E80 <= cp <= 0x303E or
+                0x3040 <= cp <= 0x33FF or 0x3400 <= cp <= 0x4DBF or
+                0x4E00 <= cp <= 0xA4CF or 0xA960 <= cp <= 0xA97F or
+                0xAC00 <= cp <= 0xD7FF or 0xF900 <= cp <= 0xFAFF or
+                0xFE10 <= cp <= 0xFE1F or 0xFE30 <= cp <= 0xFE6F or
+                0xFF00 <= cp <= 0xFF60 or 0xFFE0 <= cp <= 0xFFE6 or
+                0x1B000 <= cp <= 0x1B0FF or 0x1F004 <= cp <= 0x1F0CF or
+                0x1F300 <= cp <= 0x1F9FF or 0x20000 <= cp <= 0x2FFFD or
+                0x30000 <= cp <= 0x3FFFD):
+            w += 2
+        else:
+            w += 1
+    return w
+
+_LABEL_WIDTH = 14
+
 def detail_row(label: str, value: str) -> str:
-    return f"  {D}{label:<14}{R}  {value}"
+    pad = max(0, _LABEL_WIDTH - _wcswidth(label))
+    return f"  {D}{label}{' ' * pad}{R}  {value}"
+
+def detail_indent() -> str:
+    """Indent matching detail_row value column (for continuation lines)."""
+    return "  " + " " * _LABEL_WIDTH + "  "
 
 def wait_key() -> None:
     wl(f"  {D}q で戻る{R}")

@@ -57,13 +57,16 @@ def _parse_duration(s: str) -> int | None:
     total = sum(int(n) * units[u] for n, u in matches)
     return total if total > 0 else None
 
-def _ts(iso: str | None) -> str:
+def _ts(iso) -> str:
     if not iso: return f"{D}—{R}"
     try:
-        dt = datetime.datetime.fromisoformat(iso.replace("Z", "+00:00"))
+        if isinstance(iso, (int, float)):
+            dt = datetime.datetime.fromtimestamp(iso, tz=datetime.timezone.utc)
+            return dt.strftime("%Y-%m-%d %H:%M")
+        dt = datetime.datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
         return dt.strftime("%Y-%m-%d %H:%M")
     except Exception:
-        return iso[:16]
+        return str(iso)[:16]
 
 def _size(n: int | None) -> str:
     if n is None: return f"{D}—{R}"
@@ -199,7 +202,8 @@ def screen_upload(args_file: str | None = None) -> None:
             if dk:
                 ui.wl(ui.div())
                 ui.wl(ui.detail_row("管理キー", f"{BR}{dk}{R}"))
-                ui.wl(f"  {D}              curl clilap.org/cp -X DELETE -d key={dk}{R}")
+                _ci = ui.detail_indent()
+                ui.wl(f"{_ci}{D}curl clilap.org/cp -X DELETE -d key={dk}{R}")
             ui.wl(ui.sep())
             ui.wl(f"  {D}c URLをコピー  q 戻る{R}")
             while True:
@@ -232,9 +236,10 @@ def screen_upload(args_file: str | None = None) -> None:
             if dk:
                 ui.wl(ui.div())
                 ui.wl(ui.detail_row("管理キー", f"{BR}{dk}{R}"))
-                ui.wl(f"  {D}              curl clilap.org/cp/{pid} -F file=@new.py -F key={dk}{R}")
-                ui.wl(f"  {D}              curl clilap.org/cp -X DELETE -d key={dk}{R}")
-                ui.wl(f"  {D}              curl clilap.org/cp/stats/{pid}{R}")
+                _ci = ui.detail_indent()
+                ui.wl(f"{_ci}{D}curl clilap.org/cp/{pid} -F file=@new.py -F key={dk}{R}")
+                ui.wl(f"{_ci}{D}curl clilap.org/cp -X DELETE -d key={dk}{R}")
+                ui.wl(f"{_ci}{D}curl clilap.org/cp/stats/{pid}{R}")
             ui.wl(ui.sep())
             ui.wl(f"  {D}c URLをコピー  u 上書き  q 戻る{R}")
             while True:
@@ -323,8 +328,12 @@ def screen_my_files() -> None:
 def screen_my_file_detail(item: dict) -> None:
     pid = item["id"]
     dk  = item["delete_key"]
+    _first = True
     while True:
-        ui.clear()
+        if _first:
+            ui.clear(); _first = False
+        else:
+            ui.w("\x1b[H")
         ui.wl(ui.sep())
         ui.wl(f"  {BC}ファイル詳細{R}")
         ui.wl(ui.div())
@@ -342,9 +351,10 @@ def screen_my_file_detail(item: dict) -> None:
         ui.wl(ui.detail_row("raw",        f"{DC}{raw_url}{R}"))
         ui.wl(ui.div())
         ui.wl(ui.detail_row("管理キー",   f"{BR}{dk}{R}"))
-        ui.wl(f"  {D}              curl clilap.org/cp/{pid} -F file=@new.py -F key={dk}{R}")
-        ui.wl(f"  {D}              curl clilap.org/cp -X DELETE -d key={dk}{R}")
-        ui.wl(f"  {D}              curl clilap.org/cp/stats/{pid}{R}")
+        _ci = ui.detail_indent()
+        ui.wl(f"{_ci}{D}curl clilap.org/cp/{pid} -F file=@new.py -F key={dk}{R}")
+        ui.wl(f"{_ci}{D}curl clilap.org/cp -X DELETE -d key={dk}{R}")
+        ui.wl(f"{_ci}{D}curl clilap.org/cp/stats/{pid}{R}")
         ui.wl(ui.sep())
         ui.wl(f"  {D}c URLコピー  d 削除  u 上書き  q 戻る{R}")
         key = ui.getch()
