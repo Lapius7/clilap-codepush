@@ -1,6 +1,6 @@
 """clilap codepush CLI — interactive TUI entry point."""
 from __future__ import annotations
-import sys, json, pathlib, datetime, re
+import sys, os, json, pathlib, datetime, re
 
 from . import __version__
 from . import ui
@@ -131,7 +131,6 @@ def screen_upload(args_file: str | None = None) -> None:
         raw_path = ui.prompt("ファイルパス:")
         if raw_path is None: return
 
-    import os as _os
     # exists()はWSL UNCパスで誤判定することがあるため、open()で直接確認
     try:
         with open(raw_path, "rb") as _probe:
@@ -141,8 +140,7 @@ def screen_upload(args_file: str | None = None) -> None:
         ui.wait_key()
         return
 
-    path = pathlib.Path(raw_path)
-    filename = _os.path.basename(raw_path) or path.name
+    filename = os.path.basename(raw_path) or pathlib.Path(raw_path).name
     ttl_choice = ui.menu("有効期限", [
         {"label": "無期限",         "value": "0"},
         {"label": "1時間",          "value": str(3600)},
@@ -421,7 +419,6 @@ def screen_update_file(item: dict) -> None:
     ui.wl(ui.div())
     raw = ui.prompt("新しいファイルパス:")
     if raw is None: return
-    import os as _os
     try:
         with open(raw, "rb") as _probe:
             pass
@@ -429,7 +426,7 @@ def screen_update_file(item: dict) -> None:
         ui.wl(f"  {BR}✗ ファイルが見つかりません{R}")
         ui.wait_key()
         return
-    new_filename = _os.path.basename(raw) or pathlib.Path(raw).name
+    new_filename = os.path.basename(raw) or pathlib.Path(raw).name
     err = None
     with ui.Spinner(f"上書き中: {new_filename}"):
         try:
@@ -445,7 +442,7 @@ def screen_update_file(item: dict) -> None:
     if err:
         ui.wl(f"  {BR}✗ {err}{R}")
     else:
-        _save_key(pid, dk, path.name)
+        _save_key(pid, dk, new_filename)
         ui.wl(f"  {BG}✓ 上書き完了{R}")
         ui.wl(ui.detail_row("ID",  pid))
         ui.wl(ui.detail_row("URL", f"{BASE_URL}/{pid}/raw"))
@@ -479,8 +476,6 @@ def screen_diff() -> None:
     else:
         colored = [ui.colorize_diff_line(l) for l in result.splitlines()]
         ui.pager(f"Diff  {id1[:8]}... ↔ {id2[:8]}...", colored)
-
-# ── Admin screens ─────────────────────────────────────────────────────────────
 
 # ── Main menu ─────────────────────────────────────────────────────────────────
 

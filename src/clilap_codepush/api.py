@@ -4,7 +4,6 @@ import json, os, urllib.request, urllib.parse, urllib.error
 from typing import Any
 
 BASE_URL = os.environ.get("CODEPUSH_URL", "https://codepush.clilap.org")
-ADMIN_URL = os.environ.get("CODEPUSH_ADMIN_URL", "https://admin.clilap.org")
 
 class ApiError(Exception):
     def __init__(self, msg: str, status: int = 0):
@@ -82,63 +81,4 @@ def get_diff(id1: str, id2: str) -> str:
     return body.decode(errors="replace")
 
 def health() -> dict:
-    return _json("GET", f"{ADMIN_URL}/cp/health?format=json")
-
-# ── Admin API ─────────────────────────────────────────────────────────────────
-
-class AdminApi:
-    def __init__(self, token: str):
-        self.token = token
-
-    def _url(self, path: str, **extra) -> str:
-        params = {"token": self.token, **extra}
-        return f"{ADMIN_URL}/admin/cp{path}?{urllib.parse.urlencode(params)}"
-
-    def _get(self, path: str, **extra) -> Any:
-        return _json("GET", self._url(path, **extra))
-
-    def _delete(self, path: str) -> Any:
-        return _json("DELETE", self._url(path))
-
-    def _post(self, path: str, body: dict) -> Any:
-        data = json.dumps(body).encode()
-        url = self._url(path)
-        return _json("POST", url, data=data,
-                     headers={"Content-Type": "application/json"})
-
-    def stats(self) -> dict:
-        return self._get("/stats")
-
-    def pastes(self, *, page: int = 1, limit: int = 20,
-               search: str = "") -> dict:
-        kw: dict = {"page": page, "limit": limit}
-        if search: kw["search"] = search
-        return self._get("/pastes", **kw)
-
-    def paste(self, pid: str) -> dict:
-        return self._get(f"/paste/{pid}")
-
-    def paste_content(self, pid: str) -> str:
-        status, body = _req("GET", self._url(f"/paste/{pid}/content"))
-        if status >= 400:
-            raise ApiError(body.decode(errors="replace"), status)
-        return body.decode(errors="replace")
-
-    def delete_paste(self, pid: str) -> dict:
-        return self._delete(f"/paste/{pid}")
-
-    def groups(self, *, page: int = 1, limit: int = 20) -> dict:
-        return self._get("/groups", page=page, limit=limit)
-
-    def group(self, gid: str) -> dict:
-        return self._get(f"/group/{gid}")
-
-    def delete_group(self, gid: str) -> dict:
-        return self._delete(f"/group/{gid}")
-
-    def purge(self, *, expired: bool = True, orphan: bool = False) -> dict:
-        kw: dict = {}
-        if expired: kw["expired"] = "1"
-        if orphan:  kw["orphan"]  = "1"
-        url = self._url("/purge", **kw)
-        return _json("POST", url, data=b"")
+    return _json("GET", f"{BASE_URL}/cp/health?format=json")
