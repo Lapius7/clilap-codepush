@@ -187,7 +187,8 @@ class Spinner:
         show_cursor()
 
 # ── Menu ──────────────────────────────────────────────────────────────────────
-def menu(title: str, items: list[dict], back: bool = False) -> str | None:
+def menu(title: str, items: list[dict], back: bool = False,
+         exit_key: bool = True) -> str | None:
     opts = list(items)
     if back:
         opts.append({"label": "← 戻る", "value": "__back__"})
@@ -216,14 +217,19 @@ def menu(title: str, items: list[dict], back: bool = False) -> str | None:
             line = f"  {arrow} {bg}{BW if sel else ''}{icon_str}{label}{end}{hint}"
             w(line + "\x1b[K\n")
         wl(sep())
-        w(f"  {D}↑↓ 移動  Enter 選択  q 終了{R}\x1b[K")
+        if exit_key:
+            w(f"  {D}↑↓ 移動  Enter 選択  q 終了{R}\x1b[K")
+        else:
+            w(f"  {D}↑↓ 移動  Enter 選択  Ctrl+C 終了{R}\x1b[K")
 
     hide_cursor()
     draw(first=True)
     try:
         while True:
             key = getch()
-            if key in ("ctrl_c", "ctrl_d", "q"):
+            if key in ("ctrl_c", "ctrl_d"):
+                return None
+            if exit_key and key == "q":
                 return None
             if key == "up"   and idx > 0:            idx -= 1; draw()
             elif key == "down" and idx < len(opts)-1: idx += 1; draw()

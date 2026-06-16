@@ -21,10 +21,17 @@ def _load_keys() -> dict:
             pass
     return {}
 
-def _save_key(paste_id: str, delete_key: str, filename: str) -> None:
+def _save_key(paste_id: str, delete_key: str, filename: str, *,
+              expires_at=None, language: str = "", size: int | None = None) -> None:
     keys = _load_keys()
-    keys[paste_id] = {"delete_key": delete_key, "filename": filename,
-                      "uploaded_at": datetime.datetime.now().isoformat()}
+    keys[paste_id] = {
+        "delete_key":  delete_key,
+        "filename":    filename,
+        "uploaded_at": datetime.datetime.now().isoformat(),
+        "expires_at":  expires_at,
+        "language":    language,
+        "size":        size,
+    }
     KEYS_PATH.parent.mkdir(parents=True, exist_ok=True)
     KEYS_PATH.write_text(json.dumps(keys, indent=2))
 
@@ -206,17 +213,22 @@ def screen_upload(args_file: str | None = None) -> None:
 
         # 単体ファイルレスポンス: id + raw
         else:
-            pid     = result.get("id", "")
-            raw_url = result.get("raw", f"{BASE_URL}/{pid}/raw")
-            lang    = result.get("language", "")
-            size    = _size(result.get("size"))
+            pid      = result.get("id", "")
+            raw_url  = result.get("raw", f"{BASE_URL}/{pid}/raw")
+            lang     = result.get("language", "")
+            raw_size = result.get("size")
+            exp_at   = result.get("expires_at")
+            size     = _size(raw_size)
             if pid and dk:
-                _save_key(pid, dk, filename)
+                _save_key(pid, dk, filename,
+                          expires_at=exp_at, language=lang, size=raw_size)
             ui.wl(f"  {BG}✓ アップロード完了{R}")
             ui.wl(ui.div())
-            ui.wl(ui.detail_row("url",  f"{BC}{url}{R}"))
-            ui.wl(ui.detail_row("raw",  f"{DC}{raw_url}{R}"))
-            ui.wl(ui.detail_row("file", f"{filename}  {D}({lang}, {size}){R}"))
+            ui.wl(ui.detail_row("url",    f"{BC}{url}{R}"))
+            ui.wl(ui.detail_row("raw",    f"{DC}{raw_url}{R}"))
+            ui.wl(ui.detail_row("file",   f"{filename}  {D}({lang}, {size}){R}"))
+            exp_str = _ts(exp_at) if exp_at else f"{D}無期限{R}"
+            ui.wl(ui.detail_row("有効期限", exp_str))
             if dk:
                 ui.wl(ui.div())
                 ui.wl(ui.detail_row("管理キー", f"{BR}{dk}{R}"))
@@ -318,12 +330,21 @@ def screen_my_file_detail(item: dict) -> None:
         ui.wl(ui.div())
         url     = f"{BASE_URL}/{pid}"
         raw_url = f"{BASE_URL}/{pid}/raw"
+        lang    = item.get("language", "")
+        size    = _size(item.get("size"))
+        exp_at  = item.get("expires_at")
         ui.wl(ui.detail_row("ID",         pid))
         ui.wl(ui.detail_row("ファイル名",  item.get("filename", "")))
+        ui.wl(ui.detail_row("file",       f"{D}({lang}, {size}){R}" if lang else f"{D}{size}{R}"))
         ui.wl(ui.detail_row("アップロード", item.get("uploaded_at", "")[:16]))
+        ui.wl(ui.detail_row("有効期限",   _ts(exp_at) if exp_at else f"{D}無期限{R}"))
         ui.wl(ui.detail_row("url",        f"{BC}{url}{R}"))
         ui.wl(ui.detail_row("raw",        f"{DC}{raw_url}{R}"))
+        ui.wl(ui.div())
         ui.wl(ui.detail_row("管理キー",   f"{BR}{dk}{R}"))
+        ui.wl(f"  {D}              curl clilap.org/cp/{pid} -F file=@new.py -F key={dk}{R}")
+        ui.wl(f"  {D}              curl clilap.org/cp -X DELETE -d key={dk}{R}")
+        ui.wl(f"  {D}              curl clilap.org/cp/stats/{pid}{R}")
         ui.wl(ui.sep())
         ui.wl(f"  {D}c URLコピー  d 削除  u 上書き  q 戻る{R}")
         key = ui.getch()
@@ -457,6 +478,7 @@ def interactive_menu() -> None:
         action = ui.menu(
             f"clilap codepush  {DC}v{__version__}{R}",
             MAIN_ITEMS,
+            exit_key=False,
         )
         if action is None:
             ui.clear()
