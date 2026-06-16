@@ -50,6 +50,19 @@ def _remove_key(paste_id: str) -> None:
 R   = ui.R; D = ui.D; BC = ui.BC; BG = ui.BG; BY = ui.BY; BW = ui.BW
 BR  = ui.BR; DC = ui.DC
 
+def _parse_duration(s: str) -> int | None:
+    """'3d12h30m10s' 形式を秒数に変換。数字のみなら秒として扱う。"""
+    import re
+    s = s.strip().lower()
+    if s.isdigit():
+        return int(s)
+    units = {"d": 86400, "h": 3600, "m": 60, "s": 1}
+    matches = re.findall(r"(\d+)\s*([dhms])", s)
+    if not matches:
+        return None
+    total = sum(int(n) * units[u] for n, u in matches)
+    return total if total > 0 else None
+
 def _ts(iso: str | None) -> str:
     if not iso: return f"{D}—{R}"
     try:
@@ -140,14 +153,32 @@ def screen_upload(args_file: str | None = None) -> None:
 
     filename = path.name
     ttl_choice = ui.menu("有効期限", [
-        {"label": "無期限",  "value": "0"},
-        {"label": "1時間",   "value": str(3600)},
-        {"label": "1日",     "value": str(86400)},
-        {"label": "7日",     "value": str(86400 * 7)},
-        {"label": "30日",    "value": str(86400 * 30)},
+        {"label": "無期限",         "value": "0"},
+        {"label": "1時間",          "value": str(3600)},
+        {"label": "1日",            "value": str(86400)},
+        {"label": "7日",            "value": str(86400 * 7)},
+        {"label": "30日",           "value": str(86400 * 30)},
+        {"label": "カスタム入力…", "value": "__custom__",
+         "hint": "3d12h / 2h30m / 90m など"},
     ], back=True)
     if ttl_choice is None: return
-    ttl = int(ttl_choice) if ttl_choice != "0" else None
+    if ttl_choice == "__custom__":
+        ui.clear()
+        ui.wl(ui.sep())
+        ui.wl(f"  {BC}有効期限 カスタム入力{R}")
+        ui.wl(ui.div())
+        ui.wl(f"  {D}例: 3d12h  /  2h30m  /  90m  /  7200s{R}")
+        raw = ui.prompt("有効期限:")
+        if raw is None: return
+        ttl = _parse_duration(raw)
+        if ttl is None:
+            ui.wl(f"  {BR}✗ 解析できません: {raw}{R}")
+            ui.wait_key()
+            return
+    elif ttl_choice == "0":
+        ttl = None
+    else:
+        ttl = int(ttl_choice)
     group = ui.prompt("グループID (空=なし):", allow_empty=True) or None
     cfg = _load_cfg()
     token = cfg.get("admin_token") or ui.prompt("トークン:", allow_empty=True) or None
