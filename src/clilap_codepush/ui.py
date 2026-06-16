@@ -62,10 +62,17 @@ def header(title: str) -> str:
 
 def error_box(msg: str) -> None:
     """赤いエラーボックス表示"""
+    import re as _re
+    # ANSIと改行を除去して1行に
+    clean = _re.sub(r'\x1b\[[0-9;]*m', '', msg).replace("\n", " ").replace("\r", "").strip()
     width = min(cols(), 90)
-    inner = f" ✗  {msg} "
+    inner = f" ✗  {clean} "
+    # 枠内に収まるよう切り捨て
+    max_inner = width - 2
+    if len(inner) > max_inner:
+        inner = inner[:max_inner - 1] + "…"
     wl(BR + "╔" + "═" * (width - 2) + "╗" + R)
-    wl(BR + "║" + R + f"{BR}{inner:<{width-2}}{R}" + BR + "║" + R)
+    wl(BR + "║" + R + f"{BR}{inner:<{max_inner}}{R}" + BR + "║" + R)
     wl(BR + "╚" + "═" * (width - 2) + "╝" + R)
 
 # ── Keypress ──────────────────────────────────────────────────────────────────
