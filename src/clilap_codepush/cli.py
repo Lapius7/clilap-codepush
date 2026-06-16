@@ -714,12 +714,16 @@ def _run_action(action: str, cfg: dict) -> None:
 def interactive_menu() -> None:
     items = [i for i in MAIN_ITEMS if i["value"] != "__sep__"]
     cfg = _load_cfg()
+    def _update_sub() -> str:
+        if _update_result:
+            return f"{ui.BY}⬆ v{_update_result[0]} が利用可能です{ui.R}  {ui.D}pip install --upgrade clilap-codepush{ui.R}"
+        return ""
+
     while True:
-        update_sub = f"{ui.BY}⬆ v{_update_result[0]} が利用可能です{ui.R}  {ui.D}pip install --upgrade clilap-codepush{ui.R}" if _update_result else ""
         action = ui.menu(
             f"clilap codepush  {DC}v{__version__}{R}",
             items,
-            subtitle=update_sub,
+            subtitle_fn=_update_sub,
         )
         if action is None:
             ui.clear()

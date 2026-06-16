@@ -155,21 +155,37 @@ class Spinner:
         show_cursor()
 
 # ── Menu ──────────────────────────────────────────────────────────────────────
+def _key_available() -> bool:
+    """キー入力が待機中かどうかをノンブロッキングで確認"""
+    if not _HAS_TTY:
+        try:
+            import msvcrt
+            return msvcrt.kbhit()
+        except Exception:
+            return False
+    import select
+    return bool(select.select([sys.stdin], [], [], 0)[0])
+
 def menu(title: str, items: list[dict], back: bool = False,
-         subtitle: str = "") -> str | None:
+         subtitle_fn: "Callable[[], str] | None" = None) -> str | None:
     """Arrow-key driven menu. Returns selected value or None (back/quit)."""
     opts = list(items)
     if back:
         opts.append({"label": "← 戻る", "value": "__back__"})
 
     idx = 0
+    last_sub = [""]
 
-    def draw():
+    def draw(force: bool = False):
+        sub = subtitle_fn() if subtitle_fn else ""
+        if not force and sub == last_sub[0]:
+            return
+        last_sub[0] = sub
         clear()
         wl(sep())
         wl(f"  {BC}{title}{R}")
-        if subtitle:
-            wl(f"  {subtitle}")
+        if sub:
+            wl(f"  {sub}")
         wl(div())
         for i, item in enumerate(opts):
             sel = i == idx
@@ -185,14 +201,22 @@ def menu(title: str, items: list[dict], back: bool = False,
         wl(f"  {D}↑↓ 移動  Enter 選択  q 終了{R}")
 
     hide_cursor()
-    draw()
+    draw(force=True)
     try:
         while True:
+            # subtitle変化を検知するため短いインターバルでポーリング
+            for _ in range(20):  # 0.1s * 20 = 2s ごとに subtitle チェック
+                if _key_available():
+                    break
+                time.sleep(0.1)
+            draw()  # subtitle変化があれば再描画
+            if not _key_available():
+                continue
             key = getch()
             if key in ("ctrl_c", "ctrl_d", "q"):
                 return None
-            if key == "up"   and idx > 0:            idx -= 1; draw()
-            elif key == "down" and idx < len(opts)-1: idx += 1; draw()
+            if key == "up"   and idx > 0:            idx -= 1; draw(force=True)
+            elif key == "down" and idx < len(opts)-1: idx += 1; draw(force=True)
             elif key == "enter":
                 val = opts[idx]["value"]
                 return None if val == "__back__" else val
