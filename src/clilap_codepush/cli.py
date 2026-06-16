@@ -131,9 +131,12 @@ def screen_upload(args_file: str | None = None) -> None:
         raw_path = ui.prompt("ファイルパス:")
         if raw_path is None: return
 
-    # pathlib は \\wsl.localhost\ UNCパスを誤認することがあるため os.path で確認
     import os as _os
-    if not _os.path.exists(raw_path):
+    # exists()はWSL UNCパスで誤判定することがあるため、open()で直接確認
+    try:
+        with open(raw_path, "rb") as _probe:
+            pass
+    except (FileNotFoundError, PermissionError, OSError) as _e:
         ui.wl(f"  {BR}✗ ファイルが見つかりません: {raw_path}{R}")
         ui.wait_key()
         return
@@ -419,7 +422,10 @@ def screen_update_file(item: dict) -> None:
     raw = ui.prompt("新しいファイルパス:")
     if raw is None: return
     import os as _os
-    if not _os.path.exists(raw):
+    try:
+        with open(raw, "rb") as _probe:
+            pass
+    except (FileNotFoundError, PermissionError, OSError):
         ui.wl(f"  {BR}✗ ファイルが見つかりません{R}")
         ui.wait_key()
         return
