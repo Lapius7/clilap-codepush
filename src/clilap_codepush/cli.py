@@ -12,7 +12,7 @@ def _check_update() -> None:
     try:
         import urllib.request
         with urllib.request.urlopen(
-            "https://pypi.org/pypi/clilap-codepush/json", timeout=3
+            "https://pypi.org/pypi/clilap-codepush/json", timeout=5
         ) as r:
             data = json.loads(r.read())
         latest = data["info"]["version"]
@@ -714,9 +714,9 @@ def interactive_menu(update_thread: threading.Thread | None = None) -> None:
     items = [i for i in MAIN_ITEMS if i["value"] != "__sep__"]
     cfg = _load_cfg()
     if update_thread:
-        update_thread.join(timeout=2)
-    update_sub = f"{ui.BY}⬆ v{_update_result[0]} が利用可能です{ui.R}  {ui.D}pip install --upgrade clilap-codepush{ui.R}" if _update_result else ""
+        update_thread.join(timeout=5)
     while True:
+        update_sub = f"{ui.BY}⬆ v{_update_result[0]} が利用可能です{ui.R}  {ui.D}pip install --upgrade clilap-codepush{ui.R}" if _update_result else ""
         action = ui.menu(
             f"clilap codepush  {DC}v{__version__}{R}",
             items,
