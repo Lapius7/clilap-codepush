@@ -78,7 +78,7 @@ def get_diff(id1: str, id2: str) -> str:
     return body.decode(errors="replace")
 
 def health() -> dict:
-    return _json("GET", f"{ADMIN_URL}/cp/health")
+    return _json("GET", f"{ADMIN_URL}/cp/health?format=json")
 
 # ── Admin API ─────────────────────────────────────────────────────────────────
 

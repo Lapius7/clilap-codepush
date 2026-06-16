@@ -118,22 +118,36 @@ def screen_setup() -> None:
 def screen_health() -> None:
     err = None
     data = None
-    with ui.Spinner("health チェック中..."):
+    with ui.Spinner("サーバー状態確認中..."):
         try:
             data = health()
         except ApiError as e:
             err = e
+        except Exception as e:
+            err = e
     ui.clear()
     ui.wl(ui.sep())
-    ui.wl(f"  {BC}Health Check{R}")
+    ui.wl(f"  {BC}clilap.org/codepush  サーバー状態{R}")
     ui.wl(ui.div())
     if err is not None:
-        ui.wl(f"  {BR}✗ {err}{R}")
+        ui.wl(f"  {BR}✗ サーバーに接続できません{R}")
+        ui.wl(f"  {D}{err}{R}")
     else:
-        ui.wl(ui.detail_row("Status", f"{BG}OK{R}"))
-        for k, v in (data.items() if isinstance(data, dict) else []):
-            if k != "status":
-                ui.wl(ui.detail_row(k, str(v)))
+        ok     = data.get("ok", False)
+        db_ok  = data.get("db_ok", False)
+        issues = data.get("issues", [])
+        status_str = f"{BG}✓ オンライン{R}" if ok else f"{BR}✗ 問題あり{R}"
+        db_str     = f"{BG}ok{R}"           if db_ok else f"{BR}error{R}"
+        paste_count = data.get("paste_count")
+        count_str = f"{BW}{paste_count:,}{R} ファイル" if paste_count is not None else f"{D}—{R}"
+        ui.wl(ui.detail_row("ステータス",   status_str))
+        ui.wl(ui.detail_row("データベース", db_str))
+        ui.wl(ui.detail_row("総ファイル数", count_str))
+        ui.wl(ui.detail_row("サービスURL",  f"{D}codepush.clilap.org{R}"))
+        if issues:
+            ui.wl(ui.div())
+            for issue in issues:
+                ui.wl(f"  {BR}• {issue}{R}")
     ui.wl(ui.sep())
     ui.wait_key()
 
