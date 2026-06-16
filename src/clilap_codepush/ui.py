@@ -266,3 +266,11 @@ def table(
 
 def detail_row(label: str, value: str) -> str:
     return f"  {D}{label:<14}{R}  {value}"
+
+def wait_key() -> None:
+    """q/Enter/any key で戻る"""
+    wl(f"  {D}q で戻る{R}")
+    try:
+        getch()
+    except Exception:
+        input()

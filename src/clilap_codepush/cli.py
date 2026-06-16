@@ -107,7 +107,7 @@ def screen_health() -> None:
             if k != "status":
                 ui.wl(ui.detail_row(k, str(v)))
     ui.wl(ui.sep())
-    input(f"  {D}Enterで戻る{R}")
+    ui.wait_key()
 
 def screen_upload(args_file: str | None = None) -> None:
     ui.clear()
@@ -124,7 +124,7 @@ def screen_upload(args_file: str | None = None) -> None:
 
     if not path.exists():
         ui.wl(f"  {BR}✗ ファイルが見つかりません: {path}{R}")
-        input(f"  {D}Enterで戻る{R}")
+        ui.wait_key()
         return
 
     filename = path.name
@@ -159,7 +159,7 @@ def screen_upload(args_file: str | None = None) -> None:
         if dk:
             ui.wl(ui.detail_row("管理キー", f"{BR}{dk}{R}  {D}(~/.config/clilap-codepush/keys.json に保存済み){R}"))
     ui.wl(ui.sep())
-    input(f"  {D}Enterで戻る{R}")
+    ui.wait_key()
 
 def screen_get(args_id: str | None = None) -> None:
     def _draw():
@@ -191,7 +191,7 @@ def screen_get(args_id: str | None = None) -> None:
         ui.wl()
         ui.wl(f"  {D}clilap.org/codepush{R}")
         ui.wl(ui.sep())
-        input(f"  {D}Enterで戻る{R}")
+        ui.wait_key()
         return
 
     _draw()
@@ -200,7 +200,7 @@ def screen_get(args_id: str | None = None) -> None:
     if out_raw:
         pathlib.Path(out_raw).write_bytes(data)
         ui.wl(f"  {BG}✓ 保存:{R} {out_raw}")
-        input(f"  {D}Enterで戻る{R}")
+        ui.wait_key()
     else:
         ui.clear()
         sys.stdout.buffer.write(data)
@@ -289,7 +289,7 @@ def screen_delete_file(item: dict) -> None:
         _remove_key(pid)
         ui.wl(f"  {BG}✓ 削除完了{R}")
     ui.wl(ui.sep())
-    input(f"  {D}Enterで戻る{R}")
+    ui.wait_key()
 
 def screen_update_file(item: dict) -> None:
     pid      = item["id"]
@@ -304,7 +304,7 @@ def screen_update_file(item: dict) -> None:
     path = pathlib.Path(raw)
     if not path.exists():
         ui.wl(f"  {BR}✗ ファイルが見つかりません{R}")
-        input(f"  {D}Enterで戻る{R}")
+        ui.wait_key()
         return
     err = None
     with ui.Spinner(f"上書き中: {path.name}"):
@@ -324,7 +324,7 @@ def screen_update_file(item: dict) -> None:
         ui.wl(ui.detail_row("ID",  pid))
         ui.wl(ui.detail_row("URL", f"{BASE_URL}/paste/{pid}/raw"))
     ui.wl(ui.sep())
-    input(f"  {D}Enterで戻る{R}")
+    ui.wait_key()
 
 def screen_diff() -> None:
     ui.clear()
@@ -353,7 +353,7 @@ def screen_diff() -> None:
         for line in result.splitlines()[:ui.rows()-8]:
             ui.wl("  " + line[:ui.cols()-4])
     ui.wl(ui.sep())
-    input(f"  {D}Enterで戻る{R}")
+    ui.wait_key()
 
 # ── Admin screens ─────────────────────────────────────────────────────────────
 
@@ -361,7 +361,7 @@ def _get_admin(cfg: dict) -> AdminApi | None:
     token = cfg.get("admin_token")
     if not token:
         ui.wl(f"  {BR}管理者トークン未設定。/setup を先に実行してください。{R}")
-        input(f"  {D}Enterで戻る{R}")
+        ui.wait_key()
         return None
     return AdminApi(token)
 
@@ -373,7 +373,7 @@ def screen_stats(cfg: dict) -> None:
             data = adm.stats()
         except ApiError as e:
             ui.wl(f"  {BR}✗ {e}{R}")
-            input(f"  {D}Enterで戻る{R}")
+            ui.wait_key()
             return
     ui.clear()
     ui.wl(ui.sep())
@@ -382,7 +382,7 @@ def screen_stats(cfg: dict) -> None:
     for k, v in (data.items() if isinstance(data, dict) else []):
         ui.wl(ui.detail_row(k, str(v)))
     ui.wl(ui.sep())
-    input(f"  {D}Enterで戻る{R}")
+    ui.wait_key()
 
 def screen_pastes(cfg: dict) -> None:
     adm = _get_admin(cfg)
@@ -398,7 +398,7 @@ def screen_pastes(cfg: dict) -> None:
                 data = adm.pastes(page=page, limit=page_size, search=search)
             except ApiError as e:
                 ui.wl(f"  {BR}✗ {e}{R}")
-                input(f"  {D}Enterで戻る{R}")
+                ui.wait_key()
                 return
 
         items  = data.get("pastes", [])
@@ -450,7 +450,7 @@ def screen_paste_detail(adm: AdminApi, pid: str) -> None:
             data = adm.paste(pid)
         except ApiError as e:
             ui.wl(f"  {BR}✗ {e}{R}")
-            input(f"  {D}Enterで戻る{R}")
+            ui.wait_key()
             return
 
     while True:
@@ -489,7 +489,7 @@ def screen_paste_content(adm: AdminApi, pid: str, filename: str) -> None:
             content = adm.paste_content(pid)
         except ApiError as e:
             ui.wl(f"  {BR}✗ {e}{R}")
-            input(f"  {D}Enterで戻る{R}")
+            ui.wait_key()
             return
 
     ui.clear()
@@ -508,7 +508,7 @@ def screen_paste_content(adm: AdminApi, pid: str, filename: str) -> None:
     if save:
         pathlib.Path(save).write_text(content)
         ui.wl(f"  {BG}✓ 保存:{R} {save}")
-        input(f"  {D}Enterで戻る{R}")
+        ui.wait_key()
 
 def screen_groups(cfg: dict) -> None:
     adm = _get_admin(cfg)
@@ -523,7 +523,7 @@ def screen_groups(cfg: dict) -> None:
                 data = adm.groups(page=page, limit=page_size)
             except ApiError as e:
                 ui.wl(f"  {BR}✗ {e}{R}")
-                input(f"  {D}Enterで戻る{R}")
+                ui.wait_key()
                 return
 
         items = data.get("groups", [])
@@ -568,7 +568,7 @@ def screen_group_detail(adm: AdminApi, gid: str) -> None:
             data = adm.group(gid)
         except ApiError as e:
             ui.wl(f"  {BR}✗ {e}{R}")
-            input(f"  {D}Enterで戻る{R}")
+            ui.wait_key()
             return
 
     pastes = data.get("pastes", [])
@@ -632,19 +632,19 @@ def screen_purge(cfg: dict) -> None:
     orphan  = ui.confirm("孤立ファイルを削除しますか?")
     if not expired and not orphan:
         ui.wl(f"  {D}キャンセル{R}")
-        input(f"  {D}Enterで戻る{R}")
+        ui.wait_key()
         return
     with ui.Spinner("Purge 実行中..."):
         try:
             result = adm.purge(expired=expired, orphan=orphan)
         except ApiError as e:
             ui.wl(f"  {BR}✗ {e}{R}")
-            input(f"  {D}Enterで戻る{R}")
+            ui.wait_key()
             return
     ui.wl(f"  {BG}✓ 完了{R}")
     for k, v in (result.items() if isinstance(result, dict) else []):
         ui.wl(ui.detail_row(k, str(v)))
-    input(f"  {D}Enterで戻る{R}")
+    ui.wait_key()
 
 # ── Main menu ─────────────────────────────────────────────────────────────────
 
