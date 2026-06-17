@@ -372,13 +372,18 @@ def screen_my_files() -> None:
             extra_keys=extra,
             hint=f"{BR}赤字 = サーバー上に存在しません{R}" if any(it.get("missing") for it in items) else "",
             select_guard=lambda it: "サーバー上に存在しないため詳細を表示できません" if it.get("missing") else None,
+            multi_select=True,
+            item_key=lambda it: it["id"],
         )
         if r.action in ("quit", "back"): return
         if r.action == "refresh": need_check = True; continue
         if r.action == "select" and r.item:
             screen_my_file_detail(r.item)
-        if r.action == "delete" and r.item:
-            screen_delete_file(r.item)
+        if r.action == "delete":
+            if len(r.checked) > 1:
+                screen_delete_files(r.checked)
+            elif r.item:
+                screen_delete_file(r.item)
         if r.action == "update" and r.item:
             screen_update_file(r.item)
 
@@ -461,6 +466,44 @@ def screen_delete_file(item: dict) -> None:
     else:
         _remove_key(pid)
         ui.wl(f"  {BG}✓ 削除完了{R}")
+    ui.wl(ui.sep())
+    ui.wait_key()
+
+def screen_delete_files(items: list[dict]) -> None:
+    ui.clear()
+    ui.wl(ui.sep())
+    ui.wl(f"  {BC}ファイル削除（{len(items)}件）{R}")
+    ui.wl(ui.div())
+    for it in items:
+        ui.wl(f"  {D}・{R} {it.get('filename', '')}  {D}({it['id'][:8]}){R}")
+    ui.wl(ui.sep())
+    if not ui.confirm(f"{BR}{len(items)}件削除しますか?{R}"):
+        return
+    errors = []
+    with ui.Spinner("削除中..."):
+        for it in items:
+            try:
+                delete_by_key(it["delete_key"])
+            except Exception as e:
+                errors.append((it, e))
+            else:
+                _remove_key(it["id"])
+    ui.clear()
+    ui.wl(ui.sep())
+    ui.wl(f"  {BC}ファイル削除（{len(items)}件）{R}")
+    ui.wl(ui.div())
+    ok_count = len(items) - len(errors)
+    if ok_count:
+        ui.wl(f"  {BG}✓ {ok_count}件削除完了{R}")
+    if errors:
+        ui.wl(f"  {BR}✗ {len(errors)}件失敗（サーバー上では既に削除済みの可能性があります）{R}")
+        for it, e in errors:
+            ui.wl(f"  {D}・{R} {it.get('filename', '')}: {e}")
+        ui.wl(f"  {D}ローカルの記録も削除しますか?{R}")
+        if ui.confirm("ローカルから削除"):
+            for it, _ in errors:
+                _remove_key(it["id"])
+            ui.wl(f"  {D}ローカルの記録を削除しました{R}")
     ui.wl(ui.sep())
     ui.wait_key()
 
@@ -589,7 +632,7 @@ def main() -> None:
         _main()
     except KeyboardInterrupt:
         ui.show_cursor()
-        print()
+        ui.clear()
         sys.exit(0)
 
 def _main() -> None:
