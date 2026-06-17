@@ -373,15 +373,11 @@ def screen_my_files() -> None:
             hint="Enter 詳細  d 削除  u 上書き  r 更新(存在再確認)  q 戻る  " + (
                 f"{BR}赤字 = サーバー上に存在しません{R}" if any(it.get("missing") for it in items) else ""
             ),
+            select_guard=lambda it: "サーバー上に存在しないため詳細を表示できません" if it.get("missing") else None,
         )
         if r.action in ("quit", "back"): return
         if r.action == "refresh": need_check = True; continue
         if r.action == "select" and r.item:
-            if r.item.get("missing"):
-                ui.wl()
-                ui.wl(f"  {BR}✗ サーバー上に存在しないため詳細を表示できません{R}")
-                ui.wait_key()
-                continue
             screen_my_file_detail(r.item)
         if r.action == "delete" and r.item:
             screen_delete_file(r.item)

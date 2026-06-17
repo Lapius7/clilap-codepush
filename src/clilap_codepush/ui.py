@@ -255,9 +255,13 @@ def table(
     page_size: int = 15,
     extra_keys: list[dict] | None = None,
     hint: str = "",
+    select_guard: Any = None,
 ) -> TableResult:
+    """select_guard(item) -> str | None: 文字列を返すとEnter選択をブロックし、
+    その文字列をその場に警告として表示する（画面の再クリアなし）。"""
     idx = 0
     _first = [True]
+    notice = [""]
 
     def draw():
         if _first[0]:
@@ -287,9 +291,11 @@ def table(
         for ek in (extra_keys or []):
             keys_parts.append(f"{ek['key']} {ek['label']}")
         keys_parts += ["r 更新", "q 戻る"]
-        w(f"  {D}{'  '.join(keys_parts)}{R}\x1b[K")
-        if hint:
-            w(f"\n  {D}{hint}{R}\x1b[K")
+        wl(f"  {D}{'  '.join(keys_parts)}{R}\x1b[K")
+        if notice[0]:
+            w(f"  {BR}{notice[0]}{R}\x1b[K")
+        elif hint:
+            w(f"  {D}{hint}{R}\x1b[K")
 
     hide_cursor()
     draw()
@@ -301,13 +307,18 @@ def table(
             if key == "r":      return TableResult("refresh")
             if key == "n":      return TableResult("next")
             if key == "p":      return TableResult("prev")
-            if key == "up"   and idx > 0:            idx -= 1; draw()
-            elif key == "down" and idx < len(items)-1: idx += 1; draw()
+            if key == "up"   and idx > 0:            idx -= 1; notice[0] = ""; draw()
+            elif key == "down" and idx < len(items)-1: idx += 1; notice[0] = ""; draw()
             elif key == "enter" and items:
-                return TableResult("select", items[idx])
-            for ek in (extra_keys or []):
-                if key == ek["key"]:
-                    return TableResult(ek["action"], items[idx] if items else None)
+                blocked = select_guard(items[idx]) if select_guard else None
+                if blocked:
+                    notice[0] = blocked; draw()
+                else:
+                    return TableResult("select", items[idx])
+            else:
+                for ek in (extra_keys or []):
+                    if key == ek["key"]:
+                        return TableResult(ek["action"], items[idx] if items else None)
     finally:
         show_cursor()
 
