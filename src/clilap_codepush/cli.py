@@ -377,6 +377,11 @@ def screen_my_files() -> None:
         if r.action in ("quit", "back"): return
         if r.action == "refresh": need_check = True; continue
         if r.action == "select" and r.item:
+            if r.item.get("missing"):
+                ui.wl()
+                ui.wl(f"  {BR}✗ サーバー上に存在しないため詳細を表示できません{R}")
+                ui.wait_key()
+                continue
             screen_my_file_detail(r.item)
         if r.action == "delete" and r.item:
             screen_delete_file(r.item)
