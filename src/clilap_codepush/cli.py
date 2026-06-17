@@ -285,7 +285,12 @@ def screen_get(args_id: str | None = None) -> None:
 
     if err is not None:
         _draw()
-        ui.error_box(f"{err}  削除済みか期限切れの可能性があります")
+        ui.error_box(str(err))
+        ui.wl(f"  {D}ファイルが見つかりません。考えられる原因:{R}")
+        ui.wl(f"  {D}  • 有効期限切れ{R}")
+        ui.wl(f"  {D}  • 管理キーで削除済み{R}")
+        ui.wl(f"  {D}  • 管理者による削除{R}")
+        ui.wl(f"  {D}  • IDが誤っている{R}")
         ui.wl(ui.sep())
         ui.wait_key()
         return
@@ -402,7 +407,12 @@ def screen_delete_file(item: dict) -> None:
     ui.wl(f"  {BC}ファイル削除{R}")
     ui.wl(ui.div())
     if err:
-        ui.wl(f"  {BR}✗ {err}{R}")
+        ui.error_box(str(err))
+        ui.wl(f"  {D}サーバー上では既に削除済みの可能性があります。{R}")
+        ui.wl(f"  {D}ローカルの記録も削除しますか?{R}")
+        if ui.confirm("ローカルから削除"):
+            _remove_key(pid)
+            ui.wl(f"  {D}ローカルの記録を削除しました{R}")
     else:
         _remove_key(pid)
         ui.wl(f"  {BG}✓ 削除完了{R}")
