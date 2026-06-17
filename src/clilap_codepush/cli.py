@@ -210,8 +210,7 @@ def screen_upload(args_file: str | None = None) -> None:
             if dk:
                 ui.wl(ui.div())
                 ui.wl(ui.detail_row("管理キー", f"{BR}{dk}{R}"))
-                _ci = ui.detail_indent()
-                ui.wl(f"{_ci}{D}curl clilap.org/cp -X DELETE -d key={dk}{R}")
+                ui.wl(ui.detail_row("  削除",   f"{D}curl clilap.org/cp -X DELETE -d key={dk}{R}"))
             ui.wl(ui.sep())
             ui.wl(f"  {D}c URLをコピー  q 戻る{R}")
             while True:
@@ -244,10 +243,9 @@ def screen_upload(args_file: str | None = None) -> None:
             if dk:
                 ui.wl(ui.div())
                 ui.wl(ui.detail_row("管理キー", f"{BR}{dk}{R}"))
-                _ci = ui.detail_indent()
-                ui.wl(f"{_ci}{D}curl clilap.org/cp/{pid} -F file=@new.py -F key={dk}{R}")
-                ui.wl(f"{_ci}{D}curl clilap.org/cp -X DELETE -d key={dk}{R}")
-                ui.wl(f"{_ci}{D}curl clilap.org/cp/stats/{pid}{R}")
+                ui.wl(ui.detail_row("  更新",   f"{D}curl clilap.org/cp/{pid} -F file=@new.py -F key={dk}{R}"))
+                ui.wl(ui.detail_row("  削除",   f"{D}curl clilap.org/cp -X DELETE -d key={dk}{R}"))
+                ui.wl(ui.detail_row("  統計",   f"{D}curl clilap.org/cp/stats/{pid}{R}"))
             ui.wl(ui.sep())
             ui.wl(f"  {D}c URLをコピー  u 上書き  q 戻る{R}")
             while True:
@@ -364,10 +362,9 @@ def screen_my_file_detail(item: dict) -> None:
         ui.wl(ui.detail_row("raw",        f"{DC}{raw_url}{R}"))
         ui.wl(ui.div())
         ui.wl(ui.detail_row("管理キー",   f"{BR}{dk}{R}"))
-        _ci = ui.detail_indent()
-        ui.wl(f"{_ci}{D}curl clilap.org/cp/{pid} -F file=@new.py -F key={dk}{R}")
-        ui.wl(f"{_ci}{D}curl clilap.org/cp -X DELETE -d key={dk}{R}")
-        ui.wl(f"{_ci}{D}curl clilap.org/cp/stats/{pid}{R}")
+        ui.wl(ui.detail_row("  更新",     f"{D}curl clilap.org/cp/{pid} -F file=@new.py -F key={dk}{R}"))
+        ui.wl(ui.detail_row("  削除",     f"{D}curl clilap.org/cp -X DELETE -d key={dk}{R}"))
+        ui.wl(ui.detail_row("  統計",     f"{D}curl clilap.org/cp/stats/{pid}{R}"))
         ui.wl(ui.sep())
         ui.wl(f"  {D}c URLコピー  d 削除  u 上書き  q 戻る{R}")
         key = ui.getch()
