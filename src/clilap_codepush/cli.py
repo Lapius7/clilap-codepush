@@ -370,9 +370,7 @@ def screen_my_files() -> None:
             "自分のファイル",
             items, cols,
             extra_keys=extra,
-            hint="Enter 詳細  d 削除  u 上書き  r 更新(存在再確認)  q 戻る  " + (
-                f"{BR}赤字 = サーバー上に存在しません{R}" if any(it.get("missing") for it in items) else ""
-            ),
+            hint=f"{BR}赤字 = サーバー上に存在しません{R}" if any(it.get("missing") for it in items) else "",
             select_guard=lambda it: "サーバー上に存在しないため詳細を表示できません" if it.get("missing") else None,
         )
         if r.action in ("quit", "back"): return
