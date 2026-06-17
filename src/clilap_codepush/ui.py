@@ -295,10 +295,11 @@ def table(
         for ek in (extra_keys or []):
             keys_parts.append(f"{ek['key']} {ek['label']}")
         keys_parts += ["r 更新", "q 戻る"]
-        wl(f"  {D}{'  '.join(keys_parts)}{R}\x1b[K")
         if notice[0]:
-            w(f"  {BR}{notice[0]}{R}\x1b[K")
-        elif hint:
+            wl(f"  {BR}{notice[0]}{R}\x1b[K")
+        else:
+            wl(f"  {D}{'  '.join(keys_parts)}{R}\x1b[K")
+        if hint:
             w(f"  {D}{hint}{R}\x1b[K")
 
     hide_cursor()
