@@ -6,7 +6,7 @@ from . import __version__
 from . import ui
 from .api import (
     ApiError, upload, get_raw, health,
-    delete_by_key, update_paste, get_diff,
+    delete_by_key, update_paste, get_diff, check_exists,
     BASE_URL,
 )
 
@@ -39,6 +39,33 @@ def _remove_key(paste_id: str) -> None:
     keys = _load_keys()
     keys.pop(paste_id, None)
     KEYS_PATH.write_text(json.dumps(keys, indent=2))
+
+def _set_missing_flags(missing_ids: set[str]) -> None:
+    """サーバー上で見つからなかった ID に missing フラグを立てる（見つかったものは解除）。"""
+    keys = _load_keys()
+    changed = False
+    for pid, entry in keys.items():
+        is_missing = pid in missing_ids
+        if entry.get("missing", False) != is_missing:
+            entry["missing"] = is_missing
+            changed = True
+    if changed:
+        KEYS_PATH.write_text(json.dumps(keys, indent=2))
+
+def _check_existence(paste_ids: list[str]) -> set[str]:
+    """サーバーに存在しない（削除済み・期限切れ）ID の集合を返す。"""
+    import concurrent.futures
+    missing = set()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+        futs = {ex.submit(check_exists, pid): pid for pid in paste_ids}
+        for fut in concurrent.futures.as_completed(futs):
+            pid = futs[fut]
+            try:
+                if not fut.result():
+                    missing.add(pid)
+            except Exception:
+                pass
+    return missing
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 R   = ui.R; D = ui.D; BC = ui.BC; BG = ui.BG; BY = ui.BY; BW = ui.BW
@@ -307,14 +334,32 @@ def screen_get(args_id: str | None = None) -> None:
 # ── My files screens ──────────────────────────────────────────────────────────
 
 def screen_my_files() -> None:
+    need_check = True
     while True:
         keys = _load_keys()
+        if need_check and keys:
+            with ui.Spinner("存在確認中..."):
+                missing = _check_existence(list(keys.keys()))
+            _set_missing_flags(missing)
+            keys = _load_keys()
+        need_check = False
+
         items = [{"id": k, **v} for k, v in keys.items()]
         items.sort(key=lambda x: x.get("uploaded_at", ""), reverse=True)
 
+        def _id_cell(x, s):
+            color = BR if x.get("missing") else DC
+            return f"{color}{x['id'][:8]}{R}"
+
+        def _name_cell(x, s):
+            name = x.get("filename", "")[:26]
+            if x.get("missing"):
+                return f"{BR}{name}{R}"
+            return name
+
         cols = [
-            {"header": "ID",       "width": 10, "render": lambda x, s: f"{DC}{x['id'][:8]}{R}"},
-            {"header": "ファイル名", "width": 26, "render": lambda x, s: x.get("filename", "")[:26]},
+            {"header": "ID",       "width": 10, "render": _id_cell},
+            {"header": "ファイル名", "width": 26, "render": _name_cell},
             {"header": "アップロード日時", "width": 20, "render": lambda x, s: x.get("uploaded_at", "")[:16]},
         ]
         extra = [
@@ -325,10 +370,12 @@ def screen_my_files() -> None:
             "自分のファイル",
             items, cols,
             extra_keys=extra,
-            hint="Enter 詳細  d 削除  u 上書き  q 戻る",
+            hint="Enter 詳細  d 削除  u 上書き  r 更新(存在再確認)  q 戻る  " + (
+                f"{BR}赤字 = サーバー上に存在しません{R}" if any(it.get("missing") for it in items) else ""
+            ),
         )
         if r.action in ("quit", "back"): return
-        if r.action == "refresh": pass
+        if r.action == "refresh": need_check = True; continue
         if r.action == "select" and r.item:
             screen_my_file_detail(r.item)
         if r.action == "delete" and r.item:
@@ -347,6 +394,8 @@ def screen_my_file_detail(item: dict) -> None:
             ui.w("\x1b[H")
         ui.wl(ui.sep())
         ui.wl(f"  {BC}ファイル詳細{R}")
+        if item.get("missing"):
+            ui.wl(f"  {BR}✗ サーバー上に見つかりません（削除済みか期限切れ）{R}")
         ui.wl(ui.div())
         url     = f"{BASE_URL}/{pid}"
         raw_url = f"{BASE_URL}/{pid}/raw"

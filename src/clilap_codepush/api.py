@@ -82,3 +82,9 @@ def get_diff(id1: str, id2: str) -> str:
 
 def health() -> dict:
     return _json("GET", f"{BASE_URL}/cp/health?format=json")
+
+def check_exists(paste_id: str) -> bool:
+    """paste_id がサーバー上に存在するか（期限切れ・削除済みでないか）"""
+    status, _ = _req("GET", f"{BASE_URL}/stats/{paste_id}",
+                      headers={"Accept": "application/json"})
+    return status < 400
