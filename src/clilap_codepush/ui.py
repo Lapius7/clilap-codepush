@@ -90,6 +90,8 @@ def getch() -> str:
     try:
         tty.setraw(fd)
         ch = sys.stdin.read(1)
+        if ch == "\x03":
+            raise KeyboardInterrupt
         if ch == "\x1b":
             seq = ch
             try:
@@ -113,9 +115,11 @@ def _getch_windows() -> str:
             ch2 = msvcrt.getwch()
             return {"H": "up", "P": "down", "K": "left", "M": "right"}.get(ch2, ch2)
         if ch == "\r": return "enter"
-        if ch == "\x03": return "ctrl_c"
+        if ch == "\x03": raise KeyboardInterrupt
         if ch == "\x1b": return "esc"
         return ch
+    except KeyboardInterrupt:
+        raise
     except Exception:
         return input()
 
@@ -227,7 +231,7 @@ def menu(title: str, items: list[dict], back: bool = False,
     try:
         while True:
             key = getch()
-            if key in ("ctrl_c", "ctrl_d"):
+            if key == "ctrl_d":
                 return None
             if exit_key and key == "q":
                 return None
@@ -302,7 +306,6 @@ def table(
     try:
         while True:
             key = getch()
-            if key == "ctrl_c": return TableResult("quit")
             if key == "q":      return TableResult("back")
             if key == "r":      return TableResult("refresh")
             if key == "n":      return TableResult("next")
@@ -351,7 +354,7 @@ def pager(title: str, lines: list[str]) -> None:
     try:
         while True:
             key = getch()
-            if key in ("q", "esc", "ctrl_c"):
+            if key in ("q", "esc"):
                 return
             max_scroll = max(0, len(lines) - (rows() - 6))
             if key in ("down", "j") and scroll < max_scroll:
