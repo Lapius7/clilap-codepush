@@ -245,9 +245,10 @@ def menu(title: str, items: list[dict], back: bool = False,
 
 # ── Table ─────────────────────────────────────────────────────────────────────
 class TableResult:
-    def __init__(self, action: str, item: Any = None):
-        self.action = action
-        self.item   = item
+    def __init__(self, action: str, item: Any = None, checked: list | None = None):
+        self.action  = action
+        self.item    = item
+        self.checked = checked or []
 
 def table(
     title: str,
@@ -260,12 +261,21 @@ def table(
     extra_keys: list[dict] | None = None,
     hint: str = "",
     select_guard: Any = None,
+    multi_select: bool = False,
+    item_key: Any = None,
 ) -> TableResult:
     """select_guard(item) -> str | None: 文字列を返すとEnter選択をブロックし、
-    その文字列をその場に警告として表示する（画面の再クリアなし）。"""
+    その文字列をその場に警告として表示する（画面の再クリアなし）。
+    multi_select=True で Space によるチェック選択を有効化する。
+    item_key(item) -> Hashable でチェック済み判定に使うキーを指定可能（省略時は id(item)）。"""
     idx = 0
     _first = [True]
     notice = [""]
+    keyfn = item_key or (lambda it: id(it))
+    checked_keys: set = set()
+
+    def checked_items():
+        return [it for it in items if keyfn(it) in checked_keys]
 
     def draw():
         if _first[0]:
@@ -277,6 +287,8 @@ def table(
         wl(f"  {BC}{title}{R}{pinfo}")
         wl(div())
         hdr = "  " + "  ".join(_pad(f"{BW}{c['header']}{R}", c["width"]) for c in columns)
+        if multi_select:
+            hdr = "    " + hdr
         wl(hdr)
         wl(div("─"))
         if not items:
@@ -287,19 +299,26 @@ def table(
             end = R if sel else ""
             arrow = f"{BC}▶{R}" if sel else " "
             cells = "  ".join(_pad(c["render"](item, sel), c["width"]) for c in columns)
-            wl(f"{arrow} {bg}{cells}{end}\x1b[K")
+            if multi_select:
+                box = f"{BG}[x]{R}" if keyfn(item) in checked_keys else f"{D}[ ]{R}"
+                wl(f"{arrow} {box} {bg}{cells}{end}\x1b[K")
+            else:
+                wl(f"{arrow} {bg}{cells}{end}\x1b[K")
         wl(sep())
         keys_parts = ["↑↓ 移動", "Enter 選択"]
+        if multi_select: keys_parts.append("Space 選択切替")
         if total and page > 1:                keys_parts.append("p 前")
         if total and page * page_size < total: keys_parts.append("n 次")
         for ek in (extra_keys or []):
             keys_parts.append(f"{ek['key']} {ek['label']}")
-        keys_parts += ["r 更新", "q 戻る"]
+        keys_parts += ["r 更新", "q 戻る", "Ctrl+C 終了"]
         if notice[0]:
             wl(f"  {BR}{notice[0]}{R}\x1b[K")
         else:
             wl(f"  {D}{'  '.join(keys_parts)}{R}\x1b[K")
-        if hint:
+        if multi_select and checked_keys:
+            w(f"  {BG}{len(checked_keys)}件選択中{R}\x1b[K")
+        elif hint:
             w(f"  {D}{hint}{R}\x1b[K")
 
     hide_cursor()
@@ -311,6 +330,12 @@ def table(
             if key == "r":      return TableResult("refresh")
             if key == "n":      return TableResult("next")
             if key == "p":      return TableResult("prev")
+            if multi_select and key == " " and items:
+                k = keyfn(items[idx])
+                if k in checked_keys: checked_keys.discard(k)
+                else:                 checked_keys.add(k)
+                notice[0] = ""; draw()
+                continue
             if key == "up"   and idx > 0:            idx -= 1; notice[0] = ""; draw()
             elif key == "down" and idx < len(items)-1: idx += 1; notice[0] = ""; draw()
             elif key == "enter" and items:
@@ -318,11 +343,11 @@ def table(
                 if blocked:
                     notice[0] = blocked; draw()
                 else:
-                    return TableResult("select", items[idx])
+                    return TableResult("select", items[idx], checked_items())
             else:
                 for ek in (extra_keys or []):
                     if key == ek["key"]:
-                        return TableResult(ek["action"], items[idx] if items else None)
+                        return TableResult(ek["action"], items[idx] if items else None, checked_items())
     finally:
         show_cursor()
 
