@@ -1,0 +1,19 @@
+{
+  "name": "@lapius/clilap-codepush",
+  "version": "0.0.0",
+  "description": "codepush.clilap.org の CLI クライアント。ファイルのアップロード・取得・管理を TUI で操作（要 Python 3.9+）",
+  "keywords": ["cli", "tui", "clilap", "codepush", "file-sharing"],
+  "homepage": "https://github.com/Lapius7/clilap-codepush",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Lapius7/clilap-codepush.git"
+  },
+  "license": "MIT",
+  "bin": {
+    "codepush": "bin/codepush"
+  },
+  "files": ["bin/codepush", "lib"],
+  "engines": {
+    "node": ">=18"
+  }
+}

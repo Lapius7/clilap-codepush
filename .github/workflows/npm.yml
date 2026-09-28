@@ -1,0 +1,25 @@
+# v* タグの push で npm に公開する（PyPI への publish.yml と同じきっかけ）
+# npm 側の Trusted Publisher（~/sh/npm-trust.sh で設定）で OIDC 認証する。トークンは不要。
+name: npm
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest # OIDC での公開には npm 11.5.1 以降が必要
+      - run: python3 -m compileall -q src/clilap_codepush
+      - run: node npm/build.mjs "${GITHUB_REF_NAME#v}" --publish
