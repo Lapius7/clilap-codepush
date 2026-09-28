@@ -621,11 +621,22 @@ Commands:
   myfiles         アップロード済みファイルの管理
   diff            2ペーストの差分表示
   health          サーバー状態確認
+  version, -v     バージョンを表示
   help, --help    このヘルプを表示
 
 Environment:
   CODEPUSH_URL    API ベース URL (default: {BASE_URL})
+
+{_lapius_footer()}
 """)
+
+
+def _lapius_footer() -> str:
+    """--help / --version の最後に出す作者表示と lapacks の案内"""
+    import shutil
+    tip = ("@lapius のツール: lapacks で一覧・インストール・更新" if shutil.which("lapacks")
+           else "@lapius のツール: npm i -g @lapius/lapacks で一覧・インストール・更新を管理")
+    return f"作者: Lapius (https://github.com/Lapius7)\n{tip}"
 
 def main() -> None:
     try:
@@ -646,6 +657,9 @@ def _main() -> None:
 
     if cmd in ("help", "--help", "-h"):
         _print_help()
+    elif cmd in ("version", "--version", "-v"):
+        print(f"codepush v{__version__}")
+        print(_lapius_footer())
     elif cmd == "health":
         screen_health()
     elif cmd == "upload":
