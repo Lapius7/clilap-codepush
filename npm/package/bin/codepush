@@ -1,0 +1,35 @@
+#!/usr/bin/env node
+// 同梱の Python ソース（../lib）をシステムの Python 3.9 以降で起動するシム。
+'use strict';
+
+const path = require('path');
+const { spawnSync } = require('child_process');
+
+const lib = path.join(__dirname, '..', 'lib');
+const code = [
+  'import sys',
+  "if sys.version_info < (3, 9): sys.exit('codepush: Python 3.9 以降が必要です（' + sys.version.split()[0] + '）')",
+  "sys.argv[0] = 'codepush'",
+  'from clilap_codepush.cli import main',
+  'sys.exit(main())',
+].join('\n');
+
+const env = {
+  ...process.env,
+  PYTHONPATH: [lib, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter),
+};
+const candidates =
+  process.platform === 'win32' ? [['py', ['-3']], ['python', []], ['python3', []]] : [['python3', []], ['python', []]];
+
+for (const [cmd, pre] of candidates) {
+  const r = spawnSync(cmd, [...pre, '-c', code, ...process.argv.slice(2)], { stdio: 'inherit', env });
+  if (r.error?.code === 'ENOENT') continue;
+  if (r.error) {
+    console.error(`codepush: ${cmd} を起動できません: ${r.error.message}`);
+    process.exit(1);
+  }
+  if (r.signal) process.kill(process.pid, r.signal);
+  process.exit(r.status ?? 1);
+}
+console.error('codepush: Python 3.9 以降が必要です（python3 が見つかりません）');
+process.exit(1);
