@@ -20,10 +20,10 @@
 ### npm（推奨）
 
 ```bash
-npm i -g @lapius/clilap-codepush
+pnpm add -g @lapius/clilap-codepush
 ```
 
-`codepush` コマンドが入ります（Node.js 18 以上と Python 3.9 以上が必要）。更新は `npm i -g @lapius/clilap-codepush@latest`。
+`codepush` コマンドが入ります（Node.js 18 以上と Python 3.9 以上が必要）。更新は `pnpm add -g @lapius/clilap-codepush@latest`。
 
 ### pip
 
