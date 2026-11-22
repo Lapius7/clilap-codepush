@@ -1,136 +1,153 @@
-# clilap-codepush
+<div align="center">
 
-[codepush.clilap.org](https://codepush.clilap.org) のCLIクライアント。ファイルのアップロード・取得・管理をターミナル上のインタラクティブTUIで操作できます。
+<p align="center">
+  <img src="docs/images/banner.png" alt="Codepush CLI" width="100%">
+</p>
 
-## 目次
+<p align="center"><b>English</b> | <a href="README.ja.md">日本語</a></p>
 
-- [インストール](#インストール)
-- [使い方](#使い方)
-- [機能](#機能)
-- [自分のファイル管理](#自分のファイル管理)
-- [有効期限のカスタム指定](#有効期限のカスタム指定)
-- [管理キーについて](#管理キーについて)
-- [環境変数](#環境変数)
-- [動作環境](#動作環境)
-- [トラブルシューティング](#トラブルシューティング)
-- [ライセンス](#ライセンス)
+<h1 align="center">Codepush CLI</h1>
 
-## インストール
+<h3 align="center">Upload, fetch and manage files from your terminal.</h3>
 
-### pnpm（推奨）
+<p align="center">CLI client for <a href="https://codepush.clilap.org">codepush.clilap.org</a>. Upload, fetch and manage files from an interactive terminal UI.</p>
 
-> このパッケージは **pnpm 前提**です。npm と pnpm の両方に入れると同じコマンドが二重になるため、`pnpm add -g` だけを使ってください。
+<p align="center">
+  <a href="https://github.com/Lapius7/clilap-codepush/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Lapius7/clilap-codepush?label=release&style=flat-square&color=e8833a&logo=github"></a>
+  <a href="https://www.npmjs.com/package/@lapius/clilap-codepush"><img alt="npm" src="https://img.shields.io/npm/v/@lapius/clilap-codepush?style=flat-square&color=cb3837&logo=npm"></a>
+  <a href="https://pypi.org/project/clilap-codepush/"><img alt="PyPI" src="https://img.shields.io/pypi/v/clilap-codepush?style=flat-square&color=3776ab&logo=pypi&logoColor=white"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/Lapius7/clilap-codepush?style=flat-square&color=97ca00"></a>
+  <a href="https://github.com/Lapius7/clilap-codepush/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Lapius7/clilap-codepush?style=flat-square&color=e3b341&logo=github"></a>
+  <a href="https://github.com/Lapius7/clilap-codepush/commits/main"><img alt="Last commit" src="https://img.shields.io/github/last-commit/Lapius7/clilap-codepush?label=last%20commit&style=flat-square&color=2f81f7"></a>
+</p>
+
+<p align="center"><a href="#install">Install</a> · <a href="#usage">Usage</a> · <a href="#features">Features</a> · <a href="#managing-your-files">Managing your files</a> · <a href="#environment-variables">Environment variables</a> · <a href="#troubleshooting">Troubleshooting</a></p>
+
+</div>
+
+---
+
+## Install
+
+Use pnpm. Installing with both npm and pnpm registers the same command twice, so use `pnpm add -g` only.
 
 ```bash
 pnpm add -g @lapius/clilap-codepush
 ```
 
-`codepush` コマンドが入ります（Node.js 18 以上と Python 3.9 以上が必要）。更新は `pnpm add -g @lapius/clilap-codepush@latest`。
+This installs the `codepush` command. It needs Node.js 18+ and Python 3.9+. To update, run `pnpm add -g @lapius/clilap-codepush@latest`.
 
-### pip
+With pip, run:
 
 ```bash
 pip install clilap-codepush
 ```
 
-更新する場合（`pip install` だけではバージョンが上がりません）:
+To update, use `--upgrade`. A plain `pip install` does not raise the version of an installed package.
 
 ```bash
 pip install --upgrade clilap-codepush
 ```
 
-> グローバル環境を汚したくない場合は [pipx](https://pipx.pypa.io/) でも導入できます: `pipx install clilap-codepush` / `pipx upgrade clilap-codepush`
+To keep the global environment clean, use [pipx](https://pipx.pypa.io/): `pipx install clilap-codepush` and `pipx upgrade clilap-codepush`.
 
-## 使い方
+## Usage
 
-### インタラクティブメニュー（推奨）
+### Interactive menu (recommended)
 
 ```bash
 codepush
 ```
 
-矢印キーで項目を選択し Enter で実行。Ctrl+C で終了。
+Pick an item with the arrow keys and press Enter. Ctrl+C quits.
 
-### コマンドライン
-
-```bash
-codepush upload <file>   # ファイルをアップロード
-codepush get <id>        # ファイルを取得（stdout 出力）
-codepush myfiles         # 自分のファイル一覧
-codepush diff            # 2ファイルの差分表示
-codepush health          # サーバー状態確認
-codepush help            # ヘルプ表示
-```
-
-## 機能
-
-| 機能 | 説明 |
-|------|------|
-| アップロード | テキスト・コード・zipなど。有効期限を設定可能（無期限/1時間/1日/7日/30日/カスタム） |
-| ダウンロード | IDを指定してファイルをstdoutまたはファイルに保存 |
-| 自分のファイル | アップロード済みファイルの一覧・詳細・削除・上書き・サーバー上の存在確認 |
-| Diff | 2つのペーストの差分をカラー表示 |
-| Health | サーバーの稼働状態・DB状態・総ファイル数を確認 |
-| フォルダアップロード | tar.gz / zip をまとめてアップロードし、ファイルツリーとして共有 |
-| パスワード保護 | アップロード時にパスワードを設定し、取得時に要求 |
-
-## 自分のファイル管理
-
-`codepush myfiles`（またはメニューの「自分のファイル」）でアップロード履歴を一覧表示します。
-
-- 一覧を開くと、各ファイルがサーバー上にまだ存在するか（削除済み・期限切れでないか）を裏で並列に確認します
-- サーバー上に存在しないファイルは **ID・ファイル名が赤色** で表示され、詳細画面を開くことはできません
-- `r` キーで存在確認を再実行できます
-- `d` で削除、`u` で上書き（再アップロード）
-
-これはローカルの `keys.json` （後述）に記録されているだけの情報であり、サーバー側で実際に削除・失効したものを検知して見た目で区別するための機能です。
-
-## 有効期限のカスタム指定
-
-```
-3d12h     # 3日12時間
-2h30m     # 2時間30分
-90m       # 90分
-7200s     # 7200秒（= 2時間）
-7200      # 数字のみは秒として扱う
-```
-
-## 管理キーについて
-
-アップロード時に発行される管理キー（`delete_key`）は `~/.config/clilap-codepush/keys.json` に自動保存されます。「自分のファイル」メニューから削除・上書きが可能です。
-
-curlでの操作例:
+### Command line
 
 ```bash
-# 上書き
+codepush upload <file>   # upload a file
+codepush get <id>        # print a paste to stdout
+codepush myfiles         # manage your uploaded files (alias: my)
+codepush delete          # opens the same screen as myfiles
+codepush diff            # diff two pastes
+codepush health          # check the server
+codepush version         # show the version (-v, --version)
+codepush help            # show help
+```
+
+## Features
+
+| Feature | Description |
+| --- | --- |
+| Upload | Text, code, zip and more. Expiry is selectable: never, 1 hour, 1 day, 7 days, 30 days or custom. |
+| Download | Fetch a file by ID to stdout or to a file. |
+| My files | List, inspect, delete, overwrite and check whether each file still exists on the server. |
+| Diff | Show the difference between two pastes in color. |
+| Health | Check server status, database status and the total file count. |
+| Folder upload | Upload a tar.gz or zip and share it as a file tree. |
+| Password protection | Set a password on upload and require it on download. |
+
+## Managing your files
+
+`codepush myfiles` (or "My files" in the menu) lists your upload history.
+
+- Opening the list checks in parallel, in the background, whether each file still exists on the server (not deleted, not expired).
+- A file missing from the server is shown with its **ID and name in red**, and its detail screen cannot be opened.
+- Press `r` to run the check again.
+- Press `d` to delete and `u` to overwrite (re-upload).
+
+The list is only what is recorded in the local `keys.json` (see below). The check exists so that files already deleted or expired on the server can be told apart on screen.
+
+## Custom expiry
+
+```
+3d12h     # 3 days 12 hours
+2h30m     # 2 hours 30 minutes
+90m       # 90 minutes
+7200s     # 7200 seconds (= 2 hours)
+7200      # a bare number is read as seconds
+```
+
+## Admin key
+
+The admin key (`delete_key`) issued at upload is saved automatically to `~/.config/clilap-codepush/keys.json`. You can delete or overwrite from the "My files" menu.
+
+Examples with curl are below.
+
+```bash
+# overwrite
 curl clilap.org/cp/<id> -F file=@new.py -F key=<delete_key>
 
-# 削除
+# delete
 curl clilap.org/cp -X DELETE -d key=<delete_key>
 
-# 統計
+# stats
 curl clilap.org/cp/stats/<id>
 ```
 
-## 環境変数
+## Environment variables
 
-| 変数 | デフォルト | 説明 |
-|------|-----------|------|
-| `CODEPUSH_URL` | `https://codepush.clilap.org` | APIのベースURL |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `CODEPUSH_URL` | `https://codepush.clilap.org` | Base URL of the API |
 
-## 動作環境
+## Requirements
 
-- Python 3.9 以上
-- Windows / macOS / Linux（WSL含む）
-- クリップボードコピー: `xclip` / `xsel` / `wl-copy`（Linux）、`pbcopy`（macOS）、標準（Windows）
-- 追加の依存パッケージなし（標準ライブラリのみで動作）
+- Python 3.9+
+- Windows, macOS and Linux (including WSL)
+- Clipboard copy: `xclip`, `xsel` or `wl-copy` (Linux), `pbcopy` (macOS), built in on Windows
+- No extra dependencies (standard library only)
 
-## トラブルシューティング
+> [!NOTE]
+> Folder upload and password protection are carried over from the old README. Neither could be confirmed in this client's code, so they are unverified here and may be handled by the server. Commands that talk to the server were not run for this rewrite.
 
-- **`pip install` 後もバージョンが古い**: `pip install` は既にインストール済みの場合バージョンを確認しないため、`pip install --upgrade clilap-codepush` を使ってください。
-- **`codepush` コマンドが見つからない**: Pythonの `Scripts`（Windows）/ `bin`（macOS・Linux）ディレクトリがPATHに含まれているか確認してください。
-- **`pip install --break-system-packages` が必要と言われる**: Debian/Ubuntu系などでシステムPythonへの直接インストールが制限されている場合に発生します。前述の `pipx` を使うか、`--break-system-packages` を付けて実行してください。
+## Troubleshooting
 
-## ライセンス
+**The version is old after `pip install`.** `pip install` does not check the version of an installed package. Use `pip install --upgrade clilap-codepush`.
 
-[MIT](LICENSE)
+**The `codepush` command is not found.** Check that Python's `Scripts` directory (Windows) or `bin` directory (macOS and Linux) is on your PATH.
+
+**pip asks for `--break-system-packages`.** This happens on Debian and Ubuntu when installing into the system Python is restricted. Use `pipx` as above, or add `--break-system-packages`.
+
+## License
+
+MIT ([LICENSE](LICENSE))
