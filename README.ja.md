@@ -43,7 +43,7 @@ pip の場合は次のとおりです。
 pip install clilap-codepush
 ```
 
-更新するときは `--upgrade` を付けます。`pip install` だけでは、入っているバージョンは上がりません。
+更新するときは `--upgrade` を付けます。`pip install` だけでは入っているバージョンは上がりません。
 
 ```bash
 pip install --upgrade clilap-codepush
@@ -142,7 +142,7 @@ curl clilap.org/cp/stats/<id>
 
 ## トラブルシューティング
 
-**`pip install` 後もバージョンが古い。** `pip install` は、すでに入っているパッケージのバージョンを確認しません。`pip install --upgrade clilap-codepush` を使ってください。
+**`pip install` 後もバージョンが古い。** `pip install` はすでに入っているパッケージのバージョンを確認しません。`pip install --upgrade clilap-codepush` を使ってください。
 
 **`codepush` コマンドが見つからない。** Python の `Scripts`(Windows)または `bin`(macOS・Linux)ディレクトリが PATH に含まれているか確認してください。
 
